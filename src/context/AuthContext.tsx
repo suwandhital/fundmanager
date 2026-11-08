@@ -232,7 +232,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     []
   );
 
-  // ── Login (Syncs with MongoDB Atlas & saves locally) ───────────────────────
+  // ── Login (Authenticates with MongoDB Atlas or cached credentials) ─────────
   const login = useCallback(
     async (email: string, password: string) => {
       try {
@@ -251,18 +251,18 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           const { data, error } = await apiFetchWithTimeout<{ user: User; token: string }>(
             '/api/auth/login',
             { email: e, password },
-            4000
+            5000
           );
           if (data?.user) {
             remoteUser = data.user;
             remoteToken = data.token;
-          } else if (error && error !== 'Offline' && !error.includes('aborted')) {
+          } else if (error) {
             serverError = error;
           }
         } catch {}
 
-        // If server actively rejected password, return error
-        if (serverError && (serverError.includes('password') || serverError.includes('Incorrect'))) {
+        // If server reported an auth error (e.g. wrong password or user not found)
+        if (serverError && serverError !== 'Offline' && !serverError.includes('aborted')) {
           return { success: false, error: serverError };
         }
 
@@ -280,7 +280,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           };
           await AsyncStorage.setItem(KEY_USERS, JSON.stringify(localUsers)).catch(() => {});
         } else if (localUsers[e]) {
-          // Account exists on device
+          // Device is offline, but account was previously logged in on this phone
           if (localUsers[e].passwordHash && localUsers[e].passwordHash !== pHash) {
             return { success: false, error: 'Incorrect password' };
           }
@@ -291,24 +291,17 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             createdAt: localUsers[e].createdAt,
           };
         } else {
-          // Offline initialization
-          const defaultName = e.split('@')[0] || 'User';
-          const capitalizedName = defaultName.charAt(0).toUpperCase() + defaultName.slice(1);
-          userObj = {
-            id: uid(),
-            email: e,
-            name: capitalizedName,
-            createdAt: Date.now(),
+          // Offline and account does not exist on this device:
+          return {
+            success: false,
+            error:
+              serverError === 'Offline'
+                ? 'Server unreachable and account not cached on this device.'
+                : (serverError || 'Account not found. Please create an account first.')
           };
-          localUsers[e] = {
-            ...userObj,
-            passwordHash: pHash,
-            synced: false,
-          };
-          await AsyncStorage.setItem(KEY_USERS, JSON.stringify(localUsers)).catch(() => {});
         }
 
-        // 3. Save persistent session immediately (never asks for login until logout)
+        // 3. Save persistent session (user stays logged in until explicit logout)
         await secureSet(KEY_SESSION, JSON.stringify({ user: userObj, token: remoteToken }));
         setUser(userObj);
         setHasPromptedBioThisSession(false);

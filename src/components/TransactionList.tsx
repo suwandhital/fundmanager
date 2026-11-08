@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, TouchableOpacity, FlatList } from 'react-native
 import { useTransactions } from '../context/TransactionContext';
 import { useTheme } from '../theme/ThemeContext';
 import { Transaction } from '../types';
-import { num, fmtDate } from '../utils/formatters';
+import { num, fmtDate, fmtTime } from '../utils/formatters';
 
 interface TransactionListProps {
   onSelectTransaction: (tx: Transaction) => void;
@@ -61,6 +61,10 @@ export const TransactionList: React.FC<TransactionListProps> = ({
           <View style={styles.txMeta}>
             <Text style={[styles.metaText, { color: theme.muted }]}>
               {fmtDate(tx.date)}
+            </Text>
+            <Text style={[styles.metaSep, { color: theme.muted }]}>·</Text>
+            <Text style={[styles.metaText, { color: theme.muted }]}>
+              {fmtTime(tx.time || tx.createdAt)}
             </Text>
             <Text style={[styles.metaSep, { color: theme.muted }]}>·</Text>
             <Text style={[styles.metaText, { color: theme.muted }]}>

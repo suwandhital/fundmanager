@@ -127,16 +127,11 @@ app.post('/api/auth/login', async (req, res) => {
       return res.status(400).json({ error: 'Email and password are required' });
 
     const cleanEmail = email.toLowerCase().trim();
-    let user = await User.findOne({ email: cleanEmail });
+    const user = await User.findOne({ email: cleanEmail });
 
     if (!user) {
-      // Auto-create user on first login so users are never blocked
-      const defaultName = cleanEmail.split('@')[0] || 'User';
-      const capName = defaultName.charAt(0).toUpperCase() + defaultName.slice(1);
-      const passwordHash = await bcrypt.hash(password, 10);
-      user = await User.create({ name: capName, email: cleanEmail, passwordHash });
-      console.log(`[API] Auto-created user on first login in MongoDB Atlas: ${user._id} (${user.email})`);
-      return res.json({ user: sanitizeUser(user), token: makeToken(user) });
+      console.log(`[API] Login failed: User not found for ${cleanEmail}`);
+      return res.status(401).json({ error: 'Account not found. Please register first.' });
     }
 
     const valid = await bcrypt.compare(password, user.passwordHash);

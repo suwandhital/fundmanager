@@ -188,8 +188,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
   },
   filterSection: {
-    marginTop: 12,
-    marginBottom: 8,
+    marginTop: 18,
+    marginBottom: 2,
   },
   listContainer: {
     flex: 1,

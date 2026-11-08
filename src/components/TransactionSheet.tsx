@@ -16,7 +16,7 @@ import { useTheme } from '../theme/ThemeContext';
 import { useToast } from '../context/ToastContext';
 import { Transaction, TransactionType } from '../types';
 import { CATEGORIES, ymd, fmtTime } from '../utils/formatters';
-import { X } from 'lucide-react-native';
+import { X, Trash2 } from 'lucide-react-native';
 
 interface TransactionSheetProps {
   visible: boolean;
@@ -71,12 +71,11 @@ const TransactionSheetForm: React.FC<TransactionSheetProps> = ({
   const isIncome = type === 'income';
   const activeColor = isIncome ? theme.income : theme.expense;
   const activeAmountBg = isIncome
-    ? 'rgba(34, 197, 94, 0.11)'
-    : 'rgba(239, 68, 68, 0.10)';
+    ? 'rgba(34, 197, 94, 0.09)'
+    : 'rgba(239, 68, 68, 0.09)';
 
   const availableCategories = CATEGORIES[type];
 
-  // Adjust category when switching type if current category isn't in new list
   const handleTypeSelect = (newType: TransactionType) => {
     setType(newType);
     if (!CATEGORIES[newType].includes(category)) {
@@ -127,7 +126,7 @@ const TransactionSheetForm: React.FC<TransactionSheetProps> = ({
     } else {
       Alert.alert(
         'Delete Transaction',
-        'Delete this transaction?',
+        'Are you sure you want to delete this transaction?',
         [
           { text: 'Cancel', style: 'cancel' },
           { text: 'Delete', style: 'destructive', onPress: confirmDelete },
@@ -137,23 +136,28 @@ const TransactionSheetForm: React.FC<TransactionSheetProps> = ({
   };
 
   const recordedTimeHint = isEditing
-    ? `Recorded at ${fmtTime(transactionToEdit.createdAt)} — this time is kept as-is.`
-    : `Recorded at ${fmtTime(initTimestamp)} (system time).`;
+    ? `Recorded at ${fmtTime(transactionToEdit.createdAt)}`
+    : `Current time: ${fmtTime(initTimestamp)}`;
 
   return (
-    <Modal visible={visible} transparent animationType="none" onRequestClose={onClose}>
+    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
       <TouchableWithoutFeedback onPress={onClose}>
         <View style={[styles.overlay, { backgroundColor: theme.overlay }]}>
           <TouchableWithoutFeedback onPress={e => e.stopPropagation()}>
             <View style={[styles.sheet, { backgroundColor: theme.card }]}>
-              {/* Colored Handle */}
-              <View style={[styles.sheetHandle, { backgroundColor: activeColor }]} />
+              {/* Handle */}
+              <View style={[styles.sheetHandle, { backgroundColor: theme.line }]} />
 
-              {/* Sheet Head */}
+              {/* Head */}
               <View style={styles.sheetHead}>
-                <Text style={[styles.sheetTitle, { color: theme.text }]}>
-                  {isEditing ? 'Edit transaction' : 'New transaction'}
-                </Text>
+                <View style={styles.headLeft}>
+                  <Text style={[styles.sheetTitle, { color: theme.text }]}>
+                    {isEditing ? 'Edit Transaction' : 'New Transaction'}
+                  </Text>
+                  <Text style={[styles.sheetSubtitle, { color: theme.muted }]}>
+                    {isEditing ? 'Update amount, category, or note' : 'Record a new income or expense'}
+                  </Text>
+                </View>
                 <TouchableOpacity
                   style={[styles.closeBtn, { backgroundColor: theme.card, borderColor: theme.line }]}
                   onPress={onClose}
@@ -163,7 +167,11 @@ const TransactionSheetForm: React.FC<TransactionSheetProps> = ({
                 </TouchableOpacity>
               </View>
 
-              <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.formContent}>
+              <ScrollView
+                showsVerticalScrollIndicator={false}
+                keyboardShouldPersistTaps="handled"
+                contentContainerStyle={styles.formContent}
+              >
                 {/* Type Toggle */}
                 <View style={[styles.typeToggle, { backgroundColor: theme.track }]}>
                   <TouchableOpacity
@@ -204,7 +212,15 @@ const TransactionSheetForm: React.FC<TransactionSheetProps> = ({
                 </View>
 
                 {/* Amount Box */}
-                <View style={[styles.amountWrap, { backgroundColor: activeAmountBg }]}>
+                <View
+                  style={[
+                    styles.amountWrap,
+                    {
+                      backgroundColor: activeAmountBg,
+                      borderColor: isIncome ? 'rgba(34,197,94,0.25)' : 'rgba(239,68,68,0.25)',
+                    },
+                  ]}
+                >
                   <Text style={[styles.amountPrefix, { color: activeColor }]}>NRS</Text>
                   <TextInput
                     value={amount}
@@ -219,11 +235,11 @@ const TransactionSheetForm: React.FC<TransactionSheetProps> = ({
 
                 {/* Note */}
                 <View style={styles.fieldGroup}>
-                  <Text style={[styles.fieldLabel, { color: theme.muted }]}>Note</Text>
+                  <Text style={[styles.fieldLabel, { color: theme.muted }]}>Note / Description</Text>
                   <TextInput
                     value={note}
                     onChangeText={setNote}
-                    placeholder="e.g. Momo & chiya"
+                    placeholder="e.g. Groceries, Momo & chiya, Freelance"
                     placeholderTextColor={theme.muted}
                     maxLength={60}
                     style={[
@@ -237,56 +253,56 @@ const TransactionSheetForm: React.FC<TransactionSheetProps> = ({
                   />
                 </View>
 
-                {/* Category & Date */}
-                <View style={styles.fieldRow}>
-                  {/* Category Pill Selector */}
-                  <View style={[styles.fieldGroup, { flex: 1 }]}>
-                    <Text style={[styles.fieldLabel, { color: theme.muted }]}>Category</Text>
-                    <ScrollView
-                      horizontal
-                      showsHorizontalScrollIndicator={false}
-                      contentContainerStyle={styles.catScroll}
-                    >
-                      {availableCategories.map(cat => {
-                        const isSelected = category === cat;
-                        return (
-                          <TouchableOpacity
-                            key={cat}
+                {/* Category */}
+                <View style={styles.fieldGroup}>
+                  <Text style={[styles.fieldLabel, { color: theme.muted }]}>Category</Text>
+                  <ScrollView
+                    horizontal
+                    showsHorizontalScrollIndicator={false}
+                    contentContainerStyle={styles.catScroll}
+                  >
+                    {availableCategories.map(cat => {
+                      const isSelected = category === cat;
+                      return (
+                        <TouchableOpacity
+                          key={cat}
+                          style={[
+                            styles.catChip,
+                            {
+                              backgroundColor: isSelected ? theme.text : theme.fieldBg,
+                              borderColor: isSelected ? theme.text : theme.line,
+                            },
+                          ]}
+                          onPress={() => setCategory(cat)}
+                          activeOpacity={0.7}
+                        >
+                          <Text
                             style={[
-                              styles.catChip,
-                              {
-                                backgroundColor: isSelected ? theme.text : theme.fieldBg,
-                                borderColor: isSelected ? theme.text : theme.line,
-                              },
+                              styles.catChipText,
+                              { color: isSelected ? theme.card : theme.text },
                             ]}
-                            onPress={() => setCategory(cat)}
-                            activeOpacity={0.7}
                           >
-                            <Text
-                              style={[
-                                styles.catChipText,
-                                { color: isSelected ? theme.card : theme.text },
-                              ]}
-                            >
-                              {cat}
-                            </Text>
-                          </TouchableOpacity>
-                        );
-                      })}
-                    </ScrollView>
-                  </View>
+                            {cat}
+                          </Text>
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </ScrollView>
                 </View>
 
                 {/* Date Input */}
                 <View style={styles.fieldGroup}>
-                  <Text style={[styles.fieldLabel, { color: theme.muted }]}>Date</Text>
+                  <View style={styles.dateLabelRow}>
+                    <Text style={[styles.fieldLabel, { color: theme.muted }]}>Date</Text>
+                    <Text style={[styles.timeHint, { color: theme.muted }]}>{recordedTimeHint}</Text>
+                  </View>
                   {Platform.OS === 'web' ? (
                     <input
                       type="date"
                       value={date}
                       onChange={e => setDate((e.target as HTMLInputElement).value)}
                       style={{
-                        height: 40,
+                        height: 42,
                         borderRadius: 12,
                         border: `1px solid ${theme.line}`,
                         backgroundColor: theme.fieldBg,
@@ -297,7 +313,6 @@ const TransactionSheetForm: React.FC<TransactionSheetProps> = ({
                         outline: 'none',
                         width: '100%',
                         boxSizing: 'border-box',
-                        colorScheme: 'auto',
                       } as React.CSSProperties}
                     />
                   ) : (
@@ -318,20 +333,24 @@ const TransactionSheetForm: React.FC<TransactionSheetProps> = ({
                   )}
                 </View>
 
-                {/* Recorded Time Hint */}
-                <Text style={[styles.timeHint, { color: theme.muted }]}>
-                  {recordedTimeHint}
-                </Text>
-
-                {/* Actions Row */}
+                {/* Actions */}
                 <View style={styles.actionsRow}>
-                  {isEditing && (
+                  {isEditing ? (
                     <TouchableOpacity
                       style={[styles.btn, styles.dangerBtn]}
                       onPress={handleDelete}
                       activeOpacity={0.8}
                     >
+                      <Trash2 size={16} color={theme.expense} strokeWidth={2} style={{ marginRight: 6 }} />
                       <Text style={[styles.btnText, { color: theme.expense }]}>Delete</Text>
+                    </TouchableOpacity>
+                  ) : (
+                    <TouchableOpacity
+                      style={[styles.btn, { backgroundColor: theme.track, flex: 1 }]}
+                      onPress={onClose}
+                      activeOpacity={0.8}
+                    >
+                      <Text style={[styles.btnText, { color: theme.text }]}>Cancel</Text>
                     </TouchableOpacity>
                   )}
 
@@ -340,13 +359,16 @@ const TransactionSheetForm: React.FC<TransactionSheetProps> = ({
                       styles.btn,
                       {
                         backgroundColor: theme.text,
-                        flex: isEditing ? 2 : 1,
+                        flex: isEditing ? 1.5 : 1.4,
                       },
                     ]}
                     onPress={handleSave}
+                    disabled={isSubmitting}
                     activeOpacity={0.8}
                   >
-                    <Text style={[styles.btnText, { color: theme.card }]}>Save</Text>
+                    <Text style={[styles.btnText, { color: theme.card }]}>
+                      {isSubmitting ? 'Saving...' : isEditing ? 'Save Changes' : 'Add Transaction'}
+                    </Text>
                   </TouchableOpacity>
                 </View>
               </ScrollView>
@@ -367,30 +389,39 @@ const styles = StyleSheet.create({
   sheet: {
     width: '100%',
     maxWidth: 480,
-    borderTopLeftRadius: 22,
-    borderTopRightRadius: 22,
-    paddingHorizontal: 14,
-    paddingTop: 6,
-    paddingBottom: Platform.OS === 'ios' ? 34 : 20,
     maxHeight: '92%',
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    paddingHorizontal: 16,
+    paddingTop: 8,
+    paddingBottom: Platform.OS === 'ios' ? 34 : 20,
   },
   sheetHandle: {
     width: 36,
     height: 4,
     borderRadius: 99,
     alignSelf: 'center',
-    marginVertical: 8,
+    marginVertical: 6,
   },
   sheetHead: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     justifyContent: 'space-between',
-    marginBottom: 12,
+    marginBottom: 10,
+    paddingHorizontal: 2,
+  },
+  headLeft: {
+    flex: 1,
+    marginRight: 10,
   },
   sheetTitle: {
-    fontSize: 15.5,
-    fontWeight: '650' as any,
-    letterSpacing: -0.1,
+    fontSize: 16.5,
+    fontWeight: '700',
+    letterSpacing: -0.2,
+  },
+  sheetSubtitle: {
+    fontSize: 11.5,
+    marginTop: 2,
   },
   closeBtn: {
     width: 34,
@@ -401,64 +432,66 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   formContent: {
-    gap: 10,
-    paddingBottom: 16,
+    gap: 12,
+    paddingBottom: 12,
   },
   typeToggle: {
     flexDirection: 'row',
-    borderRadius: 10,
+    borderRadius: 12,
     padding: 3,
-    gap: 2,
+    gap: 3,
   },
   toggleBtn: {
     flex: 1,
-    paddingVertical: 8,
-    borderRadius: 8,
+    paddingVertical: 9,
+    borderRadius: 9,
     alignItems: 'center',
     justifyContent: 'center',
   },
   toggleBtnActive: {
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
+    shadowOpacity: 0.12,
+    shadowRadius: 3,
     elevation: 2,
   },
   toggleBtnText: {
     fontSize: 13,
-    fontWeight: '600',
+    fontWeight: '650' as any,
   },
   amountWrap: {
     flexDirection: 'row',
     alignItems: 'center',
     borderRadius: 14,
-    paddingVertical: 8,
+    borderWidth: 1,
+    paddingVertical: 9,
     paddingHorizontal: 14,
-    gap: 8,
+    gap: 10,
   },
   amountPrefix: {
-    fontSize: 13,
-    fontWeight: '650' as any,
+    fontSize: 14,
+    fontWeight: '700',
     letterSpacing: 0.2,
   },
   amountInput: {
     flex: 1,
     fontSize: 22,
-    fontWeight: '650' as any,
-    paddingVertical: 6,
-    outlineStyle: 'none' as any,
+    fontWeight: '700',
+    paddingVertical: 4,
   },
   fieldGroup: {
     gap: 5,
   },
-  fieldRow: {
+  dateLabelRow: {
     flexDirection: 'row',
-    gap: 10,
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingRight: 2,
   },
   fieldLabel: {
-    fontSize: 10.5,
+    fontSize: 11,
     fontWeight: '650' as any,
-    letterSpacing: 0.6,
+    letterSpacing: 0.5,
     textTransform: 'uppercase',
     paddingLeft: 2,
   },
@@ -466,9 +499,8 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     borderWidth: 1,
     paddingHorizontal: 13,
-    paddingVertical: 9,
+    paddingVertical: 10.5,
     fontSize: 14,
-    outlineStyle: 'none' as any,
   },
   catScroll: {
     flexDirection: 'row',
@@ -476,34 +508,36 @@ const styles = StyleSheet.create({
     paddingVertical: 2,
   },
   catChip: {
-    paddingVertical: 7,
-    paddingHorizontal: 12,
-    borderRadius: 8,
+    paddingVertical: 8,
+    paddingHorizontal: 13,
+    borderRadius: 10,
     borderWidth: 1,
   },
   catChipText: {
     fontSize: 12.5,
-    fontWeight: '550' as any,
+    fontWeight: '600',
   },
   timeHint: {
-    fontSize: 10.5,
+    fontSize: 11,
     fontWeight: '500',
-    paddingHorizontal: 4,
   },
   actionsRow: {
     flexDirection: 'row',
     gap: 10,
-    marginTop: 2,
+    marginTop: 6,
   },
   btn: {
     borderRadius: 12,
-    paddingVertical: 11,
+    paddingVertical: 12,
     alignItems: 'center',
     justifyContent: 'center',
+    flexDirection: 'row',
   },
   dangerBtn: {
     flex: 1,
-    backgroundColor: 'rgba(239, 68, 68, 0.14)',
+    backgroundColor: 'rgba(239, 68, 68, 0.1)',
+    borderWidth: 1,
+    borderColor: 'rgba(239, 68, 68, 0.25)',
   },
   btnText: {
     fontSize: 14.5,
