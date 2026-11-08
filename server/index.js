@@ -64,6 +64,18 @@ const sanitizeUser = (u) => ({
 
 // ─── Routes ───────────────────────────────────────────────────────────────────
 
+// Root welcome
+app.get('/', (_, res) => {
+  res.json({
+    name: "Suwan's FundManager API",
+    status: 'online',
+    version: '1.0.0',
+    runtime: `Node.js ${process.version}`,
+    cloud: 'Azure App Service',
+    time: new Date().toISOString(),
+  });
+});
+
 // Health check
 app.get('/api/health', (_, res) => {
   res.json({ ok: true, time: new Date().toISOString() });

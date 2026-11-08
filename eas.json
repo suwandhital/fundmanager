@@ -14,7 +14,7 @@
         "buildType": "apk"
       },
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://fundmanager-api.azurewebsites.net"
+        "EXPO_PUBLIC_API_URL": "https://fundmanager-api-aphxbabxdvd2g5a0.uaenorth-01.azurewebsites.net"
       }
     },
     "production": {
@@ -22,7 +22,7 @@
         "buildType": "apk"
       },
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://fundmanager-api.azurewebsites.net"
+        "EXPO_PUBLIC_API_URL": "https://fundmanager-api-aphxbabxdvd2g5a0.uaenorth-01.azurewebsites.net"
       }
     }
   },

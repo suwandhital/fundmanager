@@ -4,9 +4,9 @@ on:
   workflow_dispatch:
     inputs:
       azure_api_url:
-        description: 'Azure App Service URL (e.g., https://your-app.azurewebsites.net)'
+        description: 'Azure App Service URL'
         required: true
-        default: 'https://fundmanager-api.azurewebsites.net'
+        default: 'https://fundmanager-api-aphxbabxdvd2g5a0.uaenorth-01.azurewebsites.net'
 
 jobs:
   build-apk:
