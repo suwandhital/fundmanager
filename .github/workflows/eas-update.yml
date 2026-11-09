@@ -58,3 +58,4 @@ jobs:
           MSG="${{ github.event.inputs.message || github.event.head_commit.message || 'Automated OTA update' }}"
           echo "Publishing OTA update to channel: $CHANNEL with message: $MSG"
           npx --yes eas-cli update --channel "$CHANNEL" --message "$MSG" --non-interactive
+
