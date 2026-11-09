@@ -67,8 +67,25 @@ const sanitizeUser = (u) => ({
 
 // ─── Routes ───────────────────────────────────────────────────────────────────
 
-// Root welcome
-app.get('/', (_, res) => {
+// ─── Static & Public Assets ──────────────────────────────────────────────────
+app.use(express.static(path.join(__dirname, 'public')));
+
+// Root welcome / Portal landing page
+app.get('/', (req, res) => {
+  if (req.headers.accept && req.headers.accept.includes('application/json') && !req.headers.accept.includes('text/html')) {
+    return res.json({
+      name: "Suwan's FundManager API",
+      status: 'online',
+      version: '1.0.0',
+      runtime: `Node.js ${process.version}`,
+      cloud: 'Azure App Service',
+      time: new Date().toISOString(),
+    });
+  }
+  const indexPath = path.join(__dirname, 'public', 'index.html');
+  if (fs.existsSync(indexPath)) {
+    return res.sendFile(indexPath);
+  }
   res.json({
     name: "Suwan's FundManager API",
     status: 'online',
@@ -77,6 +94,16 @@ app.get('/', (_, res) => {
     cloud: 'Azure App Service',
     time: new Date().toISOString(),
   });
+});
+
+// Direct APK Download endpoint
+app.get(['/download/apk', '/download/FundManager.apk'], (req, res) => {
+  const localApk = path.join(__dirname, 'public', 'FundManager.apk');
+  if (fs.existsSync(localApk)) {
+    return res.download(localApk, 'FundManager.apk');
+  }
+  // If not bundled locally, redirect to GitHub release or workflow download page
+  res.redirect('https://github.com/suwandhital/fundmanager/releases/latest');
 });
 
 // Health check

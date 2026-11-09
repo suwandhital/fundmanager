@@ -12,6 +12,8 @@ jobs:
   build-apk:
     name: Build Standalone APK
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
 
     steps:
       - name: 1. Checkout Repository
@@ -61,3 +63,13 @@ jobs:
           name: FundManager-APK
           path: apk-output/FundManager.apk
           retention-days: 30
+
+      - name: 10. Publish to GitHub Releases (Direct Download Link)
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v1.0.0
+          name: "FundManager Android APK v1.0.0"
+          body: "Official standalone release for Suwan's FundManager Android app."
+          files: apk-output/FundManager.apk
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

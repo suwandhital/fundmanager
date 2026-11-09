@@ -1,0 +1,663 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Suwan's FundManager — Personal Financial Tracker</title>
+  <meta name="description" content="Official portal and API service for Suwan's FundManager. Download the latest Android APK and view live backend API status.">
+  <link rel="icon" type="image/png" href="https://raw.githubusercontent.com/suwandhital/fundmanager/main/assets/favicon.png">
+  <style>
+    :root {
+      --bg: #090d16;
+      --card-bg: rgba(18, 25, 42, 0.7);
+      --card-border: rgba(255, 255, 255, 0.08);
+      --card-hover: rgba(255, 255, 255, 0.14);
+      --text: #f8fafc;
+      --muted: #94a3b8;
+      --primary: #3b82f6;
+      --primary-glow: rgba(59, 130, 246, 0.4);
+      --accent: #10b981;
+      --accent-glow: rgba(16, 185, 129, 0.3);
+      --danger: #ef4444;
+      --font: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--font);
+      line-height: 1.6;
+      min-height: 100vh;
+      overflow-x: hidden;
+      background-image: 
+        radial-gradient(circle at 15% 20%, rgba(59, 130, 246, 0.12) 0%, transparent 45%),
+        radial-gradient(circle at 85% 75%, rgba(16, 185, 129, 0.08) 0%, transparent 50%),
+        radial-gradient(circle at 50% 50%, rgba(147, 51, 234, 0.06) 0%, transparent 60%);
+    }
+
+    .container {
+      max-width: 1120px;
+      margin: 0 auto;
+      padding: 0 24px;
+    }
+
+    /* Navigation */
+    nav {
+      border-bottom: 1px solid var(--card-border);
+      backdrop-filter: blur(16px);
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      background: rgba(9, 13, 22, 0.8);
+    }
+    .nav-inner {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      height: 70px;
+    }
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      text-decoration: none;
+      color: var(--text);
+    }
+    .brand-icon {
+      width: 42px;
+      height: 42px;
+      border-radius: 12px;
+      background: linear-gradient(135deg, #1e293b, #0f172a);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+    }
+    .brand-icon svg {
+      width: 22px;
+      height: 22px;
+      fill: none;
+      stroke: #60a5fa;
+      stroke-width: 2;
+    }
+    .brand-text h1 {
+      font-size: 17px;
+      font-weight: 700;
+      letter-spacing: -0.3px;
+    }
+    .brand-text span {
+      font-size: 11px;
+      color: var(--muted);
+      display: block;
+      margin-top: -2px;
+    }
+    .nav-links {
+      display: flex;
+      align-items: center;
+      gap: 18px;
+    }
+    .badge-live {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 5px 12px;
+      border-radius: 99px;
+      font-size: 12px;
+      font-weight: 600;
+      background: rgba(16, 185, 129, 0.12);
+      color: #34d399;
+      border: 1px solid rgba(16, 185, 129, 0.3);
+    }
+    .badge-live .dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: #10b981;
+      box-shadow: 0 0 8px #10b981;
+      animation: pulse 2s infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.4; transform: scale(0.9); }
+    }
+    .nav-btn {
+      color: var(--text);
+      text-decoration: none;
+      font-size: 13.5px;
+      font-weight: 500;
+      padding: 8px 16px;
+      border-radius: 8px;
+      border: 1px solid var(--card-border);
+      transition: all 0.2s;
+    }
+    .nav-btn:hover {
+      background: rgba(255, 255, 255, 0.05);
+      border-color: var(--card-hover);
+    }
+
+    /* Hero */
+    .hero {
+      padding: 72px 0 60px;
+      text-align: center;
+    }
+    .tag {
+      display: inline-block;
+      padding: 4px 14px;
+      border-radius: 99px;
+      font-size: 12px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      color: #60a5fa;
+      background: rgba(59, 130, 246, 0.1);
+      border: 1px solid rgba(59, 130, 246, 0.25);
+      margin-bottom: 20px;
+    }
+    .hero h2 {
+      font-size: 46px;
+      font-weight: 800;
+      letter-spacing: -1.2px;
+      line-height: 1.15;
+      margin-bottom: 18px;
+      background: linear-gradient(180deg, #ffffff 30%, #94a3b8 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    .hero p {
+      font-size: 17.5px;
+      color: var(--muted);
+      max-width: 640px;
+      margin: 0 auto 36px;
+    }
+    .cta-group {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+    .btn-primary {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      background: #3b82f6;
+      color: #ffffff;
+      padding: 14px 28px;
+      border-radius: 12px;
+      font-size: 15px;
+      font-weight: 650;
+      text-decoration: none;
+      box-shadow: 0 4px 20px var(--primary-glow);
+      transition: all 0.2s ease;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+    }
+    .btn-primary:hover {
+      background: #2563eb;
+      transform: translateY(-2px);
+      box-shadow: 0 6px 26px var(--primary-glow);
+    }
+    .btn-secondary {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: var(--card-bg);
+      color: var(--text);
+      padding: 14px 24px;
+      border-radius: 12px;
+      font-size: 15px;
+      font-weight: 600;
+      text-decoration: none;
+      border: 1px solid var(--card-border);
+      transition: all 0.2s ease;
+    }
+    .btn-secondary:hover {
+      background: rgba(255, 255, 255, 0.08);
+      border-color: var(--card-hover);
+    }
+    .hero-meta {
+      margin-top: 18px;
+      font-size: 12.5px;
+      color: var(--muted);
+    }
+
+    /* Features Grid */
+    .section-title {
+      font-size: 24px;
+      font-weight: 700;
+      letter-spacing: -0.5px;
+      margin-bottom: 8px;
+      text-align: center;
+    }
+    .section-desc {
+      text-align: center;
+      font-size: 14.5px;
+      color: var(--muted);
+      margin-bottom: 40px;
+    }
+    .features {
+      padding: 40px 0 60px;
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+      gap: 20px;
+    }
+    .card {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 16px;
+      padding: 24px;
+      backdrop-filter: blur(12px);
+      transition: all 0.25s ease;
+    }
+    .card:hover {
+      border-color: var(--card-hover);
+      transform: translateY(-3px);
+    }
+    .card-icon {
+      width: 44px;
+      height: 44px;
+      border-radius: 12px;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid var(--card-border);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 16px;
+    }
+    .card-icon svg {
+      width: 22px;
+      height: 22px;
+      stroke-width: 2;
+    }
+    .card h3 {
+      font-size: 16.5px;
+      font-weight: 650;
+      margin-bottom: 8px;
+    }
+    .card p {
+      font-size: 13.5px;
+      color: var(--muted);
+      line-height: 1.55;
+    }
+
+    /* API Documentation Section */
+    .api-section {
+      padding: 40px 0 80px;
+    }
+    .api-table {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 16px;
+      overflow: hidden;
+      backdrop-filter: blur(12px);
+    }
+    .api-row {
+      display: flex;
+      align-items: center;
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--card-border);
+      gap: 16px;
+    }
+    .api-row:last-child {
+      border-bottom: none;
+    }
+    .method {
+      padding: 4px 10px;
+      border-radius: 6px;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+      min-width: 65px;
+      text-align: center;
+    }
+    .method.get { background: rgba(59, 130, 246, 0.15); color: #60a5fa; }
+    .method.post { background: rgba(16, 185, 129, 0.15); color: #34d399; }
+    .method.delete { background: rgba(239, 68, 68, 0.15); color: #f87171; }
+    .api-endpoint {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      font-size: 13.5px;
+      color: #e2e8f0;
+      font-weight: 600;
+      flex: 1;
+    }
+    .api-desc {
+      font-size: 13px;
+      color: var(--muted);
+      flex: 1.4;
+    }
+    .api-tag {
+      font-size: 11.5px;
+      padding: 3px 8px;
+      border-radius: 6px;
+      background: rgba(255, 255, 255, 0.05);
+      color: var(--muted);
+    }
+
+    /* Live Status Box */
+    .status-box {
+      margin-top: 30px;
+      padding: 18px 24px;
+      background: rgba(15, 23, 42, 0.6);
+      border: 1px solid var(--card-border);
+      border-radius: 12px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 14px;
+    }
+    .status-info {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .status-text h4 {
+      font-size: 14px;
+      font-weight: 600;
+    }
+    .status-text p {
+      font-size: 12px;
+      color: var(--muted);
+    }
+    .btn-ping {
+      padding: 8px 16px;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid var(--card-border);
+      color: var(--text);
+      font-size: 12.5px;
+      font-weight: 600;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .btn-ping:hover {
+      background: rgba(255, 255, 255, 0.1);
+      border-color: var(--card-hover);
+    }
+
+    /* Footer */
+    footer {
+      border-top: 1px solid var(--card-border);
+      padding: 36px 0;
+      text-align: center;
+      font-size: 13px;
+      color: var(--muted);
+    }
+    footer a {
+      color: #60a5fa;
+      text-decoration: none;
+    }
+
+    @media (max-width: 640px) {
+      .hero h2 { font-size: 32px; }
+      .api-row { flex-direction: column; align-items: flex-start; gap: 8px; }
+      .api-desc { margin-top: 2px; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Navigation -->
+  <nav>
+    <div class="container nav-inner">
+      <a href="/" class="brand">
+        <div class="brand-icon">
+          <!-- WalletCards SVG -->
+          <svg viewBox="0 0 24 24">
+            <rect width="18" height="18" x="3" y="3" rx="2"/>
+            <path d="M3 9a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2"/>
+            <path d="M3 11h3c.8 0 1.6.3 2.1.9l1.1 1.2c.5.6 1.3.9 2.1.9H21"/>
+          </svg>
+        </div>
+        <div class="brand-text">
+          <h1>Suwan's FundManager</h1>
+          <span>Cloud API & App Distribution</span>
+        </div>
+      </a>
+
+      <div class="nav-links">
+        <div class="badge-live">
+          <span class="dot"></span>
+          <span>Azure App Service Online</span>
+        </div>
+        <a href="https://github.com/suwandhital/fundmanager" target="_blank" rel="noopener noreferrer" class="nav-btn">GitHub Repo</a>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Hero Section -->
+  <header class="hero">
+    <div class="container">
+      <span class="tag">Official Application Portal</span>
+      <h2>Smart, Private & Secure<br>Personal Fund Management</h2>
+      <p>Luxury mobile financial tracking engineered with biometric security, interactive weekly cashflow visualizer, instant MongoDB Atlas cloud sync, and self-hosted Over-The-Air updates.</p>
+
+      <div class="cta-group">
+        <a href="/download/apk" class="btn-primary">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+            <polyline points="7 10 12 15 17 10"/>
+            <line x1="12" y1="15" x2="12" y2="3"/>
+          </svg>
+          Download Android APK (v1.0.0)
+        </a>
+        <a href="#api" class="btn-secondary">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1-2.5-2.5Z"/>
+            <path d="M6 6h10"/>
+            <path d="M6 10h10"/>
+          </svg>
+          Explore Backend APIs
+        </a>
+      </div>
+      <div class="hero-meta">
+        Direct Standalone APK · Android 8.0+ · Free & Open Source · No Ads
+      </div>
+    </div>
+  </header>
+
+  <!-- Features Section -->
+  <section class="features">
+    <div class="container">
+      <h3 class="section-title">Engineered for Performance & Precision</h3>
+      <p class="section-desc">Key architectural features powering your daily financial control.</p>
+
+      <div class="grid">
+        <!-- Feature 1 -->
+        <div class="card">
+          <div class="card-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="#60a5fa">
+              <path d="M3 3v18h18"/>
+              <path d="m19 9-5 5-4-4-3 3"/>
+            </svg>
+          </div>
+          <h3>Weekly Cashflow Analytics</h3>
+          <p>Interactive expense vs income line charts mapping weekly trends with smart dynamic scaling and category distribution pills.</p>
+        </div>
+
+        <!-- Feature 2 -->
+        <div class="card">
+          <div class="card-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="#34d399">
+              <path d="M12 10a2 2 0 0 0-2 2c0 1.02-.1 2.51-.26 4"/>
+              <path d="M14 13.12c0 2.38 0 6.38-1 8.88"/>
+              <path d="M17.29 21.02c.12-.6.43-2.3.5-3.02"/>
+              <path d="M2 12a10 10 0 0 1 18-6"/>
+              <path d="M2 16h.01"/>
+              <path d="M21.8 16c.2-2 .131-5.354 0-6"/>
+              <path d="M5 19.5C5.5 18 6 15 6 12a6 6 0 0 1 .34-2"/>
+              <path d="M8.65 22c.21-.66.45-1.32.57-2"/>
+              <path d="M9 6.8a6 6 0 0 1 9 5.2v2"/>
+            </svg>
+          </div>
+          <h3>Biometric Security Vault</h3>
+          <p>Instant unlock using device Fingerprint or Face ID hardware with encrypted local credentials storage via Expo SecureStore.</p>
+        </div>
+
+        <!-- Feature 3 -->
+        <div class="card">
+          <div class="card-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="#a78bfa">
+              <path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z"/>
+            </svg>
+          </div>
+          <h3>MongoDB Atlas Cloud Sync</h3>
+          <p>Zero-latency real-time synchronization with MongoDB Atlas cloud. Works completely offline with automatic ledger conflict resolution.</p>
+        </div>
+
+        <!-- Feature 4 -->
+        <div class="card">
+          <div class="card-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="#f59e0b">
+              <circle cx="12" cy="12" r="10"/>
+              <polyline points="12 6 12 12 16 14"/>
+            </svg>
+          </div>
+          <h3>Minute-Precise Timestamps</h3>
+          <p>Every transaction records creation time down to the exact minute (<span style="color:#f8fafc">Date · Time · Category</span>) for pristine audit trails.</p>
+        </div>
+
+        <!-- Feature 5 -->
+        <div class="card">
+          <div class="card-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="#38bdf8">
+              <path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
+              <path d="M3 3v5h5"/>
+              <path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"/>
+              <path d="M16 21h5v-5"/>
+            </svg>
+          </div>
+          <h3>Self-Hosted OTA Updates</h3>
+          <p>Over-The-Air application updates served directly from your Azure App Service. App automatically receives UI updates with zero APK reinstallation.</p>
+        </div>
+
+        <!-- Feature 6 -->
+        <div class="card">
+          <div class="card-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="#ec4899">
+              <rect width="18" height="11" x="3" y="11" rx="2" ry="2"/>
+              <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+            </svg>
+          </div>
+          <h3>Encrypted & Private</h3>
+          <p>All passwords hashed with strong Bcrypt salts. Authentication secured with industry-standard JSON Web Tokens (JWT) on HTTPS.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- API Documentation -->
+  <section class="api-section" id="api">
+    <div class="container">
+      <h3 class="section-title">Backend API Architecture</h3>
+      <p class="section-desc">Production RESTful endpoints running on Azure App Service Node.js 22 LTS.</p>
+
+      <div class="api-table">
+        <!-- Route 1 -->
+        <div class="api-row">
+          <span class="method get">GET</span>
+          <span class="api-endpoint">/api/version</span>
+          <span class="api-desc">Returns application version, OTA status & latest APK URL</span>
+          <span class="api-tag">Public</span>
+        </div>
+
+        <!-- Route 2 -->
+        <div class="api-row">
+          <span class="method get">GET</span>
+          <span class="api-endpoint">/api/manifest</span>
+          <span class="api-desc">Expo Updates v1 protocol manifest for Over-The-Air bundles</span>
+          <span class="api-tag">OTA Core</span>
+        </div>
+
+        <!-- Route 3 -->
+        <div class="api-row">
+          <span class="method get">GET</span>
+          <span class="api-endpoint">/download/apk</span>
+          <span class="api-desc">Direct download route for the Android APK installer</span>
+          <span class="api-tag">Download</span>
+        </div>
+
+        <!-- Route 4 -->
+        <div class="api-row">
+          <span class="method post">POST</span>
+          <span class="api-endpoint">/api/auth/login</span>
+          <span class="api-desc">Authenticates user against MongoDB Atlas & issues JWT token</span>
+          <span class="api-tag">Auth</span>
+        </div>
+
+        <!-- Route 5 -->
+        <div class="api-row">
+          <span class="method post">POST</span>
+          <span class="api-endpoint">/api/auth/register</span>
+          <span class="api-desc">Creates new user account with hashed password credentials</span>
+          <span class="api-tag">Auth</span>
+        </div>
+
+        <!-- Route 6 -->
+        <div class="api-row">
+          <span class="method get">GET</span>
+          <span class="api-endpoint">/api/transactions</span>
+          <span class="api-desc">Retrieves all transactions for the authenticated user</span>
+          <span class="api-tag">Data</span>
+        </div>
+
+        <!-- Route 7 -->
+        <div class="api-row">
+          <span class="method post">POST</span>
+          <span class="api-endpoint">/api/sync</span>
+          <span class="api-desc">Bulk upsert synchronization between device and MongoDB Atlas</span>
+          <span class="api-tag">Sync Engine</span>
+        </div>
+      </div>
+
+      <!-- Live Ping Box -->
+      <div class="status-box">
+        <div class="status-info">
+          <div class="badge-live"><span class="dot"></span> Live</div>
+          <div class="status-text">
+            <h4>Azure App Service: <span id="runtime-txt">Node.js 22 LTS</span></h4>
+            <p id="ping-txt">Host: fundmanager-api-aphxbabxdvd2g5a0.uaenorth-01.azurewebsites.net</p>
+          </div>
+        </div>
+        <button class="btn-ping" onclick="pingServer()">⚡ Ping /api/version</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- Footer -->
+  <footer>
+    <div class="container">
+      <p>Suwan's FundManager &copy; 2024–2026. Built with React Native, Expo SDK 58, Node.js 22 & MongoDB Atlas.</p>
+      <p style="margin-top: 6px;">Hosted on <a href="https://azure.microsoft.com" target="_blank" rel="noopener noreferrer">Microsoft Azure App Service</a> · GitHub: <a href="https://github.com/suwandhital/fundmanager" target="_blank" rel="noopener noreferrer">suwandhital/fundmanager</a></p>
+    </div>
+  </footer>
+
+  <script>
+    async function pingServer() {
+      const btn = document.querySelector('.btn-ping');
+      const txt = document.getElementById('ping-txt');
+      btn.innerText = 'Pinging...';
+      const start = performance.now();
+      try {
+        const res = await fetch('/api/version');
+        const data = await res.json();
+        const duration = Math.round(performance.now() - start);
+        btn.innerText = '✓ ' + duration + 'ms (OK)';
+        txt.innerHTML = 'Response: <b>' + data.name + ' v' + data.version + '</b> · OTA Active';
+      } catch (e) {
+        btn.innerText = 'Failed';
+        txt.innerText = 'Error reaching API: ' + e.message;
+      }
+      setTimeout(() => { btn.innerText = '⚡ Ping /api/version'; }, 4000);
+    }
+  </script>
+</body>
+</html>
