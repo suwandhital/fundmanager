@@ -6,10 +6,15 @@
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
-    "splash": {
-      "image": "./assets/splash-icon.png",
-      "resizeMode": "contain",
-      "backgroundColor": "#090d16"
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "checkAutomatically": "ON_LOAD",
+      "fallbackToCacheTimeout": 3000,
+      "requestHeaders": {
+        "expo-channel-name": "preview"
+      }
     },
     "ios": {
       "supportsTablet": true,
@@ -37,10 +42,20 @@
     },
     "plugins": [
       "expo-secure-store",
+      "expo-updates",
       [
         "expo-local-authentication",
         {
           "faceIDPermission": "Allow Suwan's FundManager to use Face ID for biometric authentication."
+        }
+      ],
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/splash-icon.png",
+          "backgroundColor": "#090d16",
+          "resizeMode": "contain",
+          "imageWidth": 200
         }
       ]
     ]

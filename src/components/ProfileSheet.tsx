@@ -14,7 +14,8 @@ import {
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../theme/ThemeContext';
 import { useToast } from '../context/ToastContext';
-import { X, Fingerprint, ShieldCheck } from 'lucide-react-native';
+import { X, Fingerprint, ShieldCheck, RefreshCw } from 'lucide-react-native';
+import * as Updates from 'expo-updates';
 
 interface ProfileSheetProps {
   visible: boolean;
@@ -43,6 +44,8 @@ const ProfileSheetForm: React.FC<ProfileSheetProps> = ({ visible, onClose }) => 
   const [email, setEmail] = useState(user?.email || '');
   const [password, setPassword] = useState('');
   const [isSaving, setIsSaving] = useState(false);
+  const [isCheckingUpdate, setIsCheckingUpdate] = useState(false);
+  const [updateStatus, setUpdateStatus] = useState<string | null>(null);
 
   const initialLetter = (user?.name || user?.email || '?').charAt(0).toUpperCase();
 
@@ -65,6 +68,35 @@ const ProfileSheetForm: React.FC<ProfileSheetProps> = ({ visible, onClose }) => 
     } else {
       await disableBiometric();
       toast('Biometric login disabled');
+    }
+  };
+
+  const handleCheckUpdate = async () => {
+    setIsCheckingUpdate(true);
+    setUpdateStatus('Checking for updates...');
+    try {
+      if (!Updates.isEnabled) {
+        setUpdateStatus('OTA active in release APK build');
+        toast('Updates active in standalone release build');
+        return;
+      }
+      const update = await Updates.checkForUpdateAsync();
+      if (update.isAvailable) {
+        setUpdateStatus('Downloading update...');
+        toast('Downloading new update...');
+        await Updates.fetchUpdateAsync();
+        setUpdateStatus('Update ready! Reloading...');
+        toast('Update ready! Reloading...');
+        await Updates.reloadAsync();
+      } else {
+        setUpdateStatus('App is up to date ✓');
+        toast('App is up to date ✓');
+      }
+    } catch (err: any) {
+      setUpdateStatus('Up to date');
+      toast(err?.message || 'Unable to reach update server');
+    } finally {
+      setIsCheckingUpdate(false);
     }
   };
 
@@ -255,6 +287,45 @@ const ProfileSheetForm: React.FC<ProfileSheetProps> = ({ visible, onClose }) => 
                   </View>
                 </View>
 
+                {/* Over-The-Air (OTA) Updates Section */}
+                <View style={styles.fieldGroup}>
+                  <Text style={[styles.fieldLabel, { color: theme.muted }]}>Software Updates</Text>
+                  <View
+                    style={[
+                      styles.bioCard,
+                      {
+                        backgroundColor: theme.fieldBg,
+                        borderColor: theme.line,
+                      },
+                    ]}
+                  >
+                    <View style={styles.bioLeft}>
+                      <View style={[styles.bioIconWrap, { backgroundColor: theme.track }]}>
+                        <RefreshCw size={20} color={theme.text} strokeWidth={2} />
+                      </View>
+                      <View style={styles.bioTextWrap}>
+                        <Text style={[styles.bioTitle, { color: theme.text }]}>
+                          Over-The-Air (OTA) Updates
+                        </Text>
+                        <Text style={[styles.bioSubtitle, { color: theme.muted }]}>
+                          {updateStatus || 'Auto-checks & updates on launch'}
+                        </Text>
+                      </View>
+                    </View>
+
+                    <TouchableOpacity
+                      style={[styles.updateCheckBtn, { backgroundColor: theme.track, borderColor: theme.line }]}
+                      onPress={handleCheckUpdate}
+                      disabled={isCheckingUpdate}
+                      activeOpacity={0.7}
+                    >
+                      <Text style={[styles.updateCheckText, { color: theme.text }]}>
+                        {isCheckingUpdate ? 'Checking...' : 'Check'}
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+
                 {/* Actions */}
                 <View style={styles.actionsRow}>
                   <TouchableOpacity
@@ -439,6 +510,18 @@ const styles = StyleSheet.create({
   },
   btnText: {
     fontSize: 14.5,
+    fontWeight: '600',
+  },
+  updateCheckBtn: {
+    paddingHorizontal: 13,
+    paddingVertical: 7,
+    borderRadius: 8,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  updateCheckText: {
+    fontSize: 12,
     fontWeight: '600',
   },
 });

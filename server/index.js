@@ -297,6 +297,16 @@ app.post('/api/sync', async (req, res) => {
   }
 });
 
+// Version & OTA metadata endpoint
+app.get('/api/version', (req, res) => {
+  res.json({
+    name: "Suwan's FundManager",
+    version: '1.0.0',
+    otaEnabled: true,
+    latestApkUrl: 'https://github.com/suwandhital/fundmanager/releases/latest',
+  });
+});
+
 // ─── Start ────────────────────────────────────────────────────────────────────
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`🚀 FundManager API running at http://0.0.0.0:${PORT}`);
