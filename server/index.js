@@ -102,8 +102,8 @@ app.get(['/download/apk', '/download/FundManager.apk'], (req, res) => {
   if (fs.existsSync(localApk)) {
     return res.download(localApk, 'FundManager.apk');
   }
-  // Redirect to GitHub Actions APK artifact download page
-  res.redirect('https://github.com/suwandhital/fundmanager/actions/runs/42504579442');
+  // Redirect to GitHub Release APK direct download
+  res.redirect('https://github.com/suwandhital/fundmanager/releases/latest/download/FundManager.apk');
 });
 
 // Health check

@@ -5,8 +5,11 @@ on:
     inputs:
       azure_api_url:
         description: 'Azure App Service URL'
-        required: true
+        required: false
         default: 'https://fundmanager-api-aphxbabxdvd2g5a0.uaenorth-01.azurewebsites.net'
+  push:
+    tags:
+      - 'v*'
 
 jobs:
   build-apk:
@@ -39,14 +42,14 @@ jobs:
 
       - name: 6. Prebuild Android Native Project
         env:
-          EXPO_PUBLIC_API_URL: ${{ github.event.inputs.azure_api_url }}
+          EXPO_PUBLIC_API_URL: ${{ github.event.inputs.azure_api_url || 'https://fundmanager-api-aphxbabxdvd2g5a0.uaenorth-01.azurewebsites.net' }}
         run: |
           npx expo prebuild --platform android --no-install
 
       - name: 7. Compile Release APK
         working-directory: android
         env:
-          EXPO_PUBLIC_API_URL: ${{ github.event.inputs.azure_api_url }}
+          EXPO_PUBLIC_API_URL: ${{ github.event.inputs.azure_api_url || 'https://fundmanager-api-aphxbabxdvd2g5a0.uaenorth-01.azurewebsites.net' }}
         run: |
           chmod +x gradlew
           ./gradlew assembleRelease --no-daemon
@@ -67,9 +70,18 @@ jobs:
       - name: 10. Publish to GitHub Releases (Direct Download Link)
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v1.0.0
-          name: "FundManager Android APK v1.0.0"
-          body: "Official standalone release for Suwan's FundManager Android app."
+          tag_name: ${{ startsWith(github.ref, 'refs/tags/') && github.ref_name || 'v1.0.0' }}
+          name: "FundManager Android APK ${{ startsWith(github.ref, 'refs/tags/') && github.ref_name || 'v1.0.0' }}"
+          body: |
+            ### 📱 FundManager Android Release
+
+            Official standalone APK release for Suwan's FundManager application.
+
+            - **Over-The-Air Updates**: Built-in self-hosted OTA updates connected to Azure App Service
+            - **Cloud Backend**: [https://fundmanager-api-aphxbabxdvd2g5a0.uaenorth-01.azurewebsites.net](https://fundmanager-api-aphxbabxdvd2g5a0.uaenorth-01.azurewebsites.net)
+            - **Direct APK**: Download `FundManager.apk` below and install directly on any Android device.
           files: apk-output/FundManager.apk
+          draft: false
+          prerelease: false
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
