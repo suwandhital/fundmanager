@@ -24,6 +24,14 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '22.x'
+          cache: npm
+
+      - name: Install root dependencies
+        run: npm ci
+
+      - name: Export latest Android Over-The-Air bundle
+        run: |
+          npx expo export -p android --output-dir server/updates/1.0.0
 
       - name: Install server production dependencies
         working-directory: server

@@ -3,6 +3,9 @@ const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const cors = require('cors');
+const fs = require('fs');
+const path = require('path');
+const crypto = require('crypto');
 
 const app = express();
 app.use(cors());
@@ -305,6 +308,112 @@ app.get('/api/version', (req, res) => {
     otaEnabled: true,
     latestApkUrl: 'https://github.com/suwandhital/fundmanager/releases/latest',
   });
+});
+
+// ─── Self-Hosted Expo Updates Server (Zero Expo Token OTA) ──────────────────
+function getBase64URLEncoding(base64EncodedString) {
+  return base64EncodedString.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
+
+function convertSHA256HashToUUID(value) {
+  return `${value.slice(0, 8)}-${value.slice(8, 12)}-${value.slice(12, 16)}-${value.slice(16, 20)}-${value.slice(20, 32)}`;
+}
+
+app.get('/api/manifest', (req, res) => {
+  try {
+    const platform = req.headers['expo-platform'] || req.query.platform || 'android';
+    const runtimeVersion = req.headers['expo-runtime-version'] || req.query['runtime-version'] || '1.0.0';
+    const currentUpdateId = req.headers['expo-current-update-id'];
+    const protocolVersion = parseInt(req.headers['expo-protocol-version'] || '1', 10);
+
+    const updateDir = path.join(__dirname, 'updates', runtimeVersion);
+    const metadataPath = path.join(updateDir, 'metadata.json');
+
+    if (!fs.existsSync(metadataPath)) {
+      return res.status(204).end();
+    }
+
+    const metadataRaw = fs.readFileSync(metadataPath, 'utf8');
+    const metadata = JSON.parse(metadataRaw);
+    const fileStat = fs.statSync(metadataPath);
+
+    const hashId = crypto.createHash('sha256').update(metadataRaw).digest('hex');
+    const updateId = convertSHA256HashToUUID(hashId);
+
+    // If client is already running this exact update ID, nothing to download
+    if (currentUpdateId === updateId) {
+      return res.status(204).end();
+    }
+
+    const platformMetadata = metadata.fileMetadata && metadata.fileMetadata[platform];
+    if (!platformMetadata) {
+      return res.status(404).json({ error: `Platform ${platform} not available` });
+    }
+
+    const bundleRelPath = platformMetadata.bundle;
+    const bundleFullPath = path.join(updateDir, bundleRelPath);
+
+    let bundleHash = '';
+    let bundleKey = 'bundle';
+    if (fs.existsSync(bundleFullPath)) {
+      const bundleBuf = fs.readFileSync(bundleFullPath);
+      bundleHash = getBase64URLEncoding(crypto.createHash('sha256').update(bundleBuf).digest('base64'));
+      bundleKey = crypto.createHash('md5').update(bundleBuf).digest('hex');
+    }
+
+    const baseUrl = `https://${req.get('host') || 'fundmanager-api-aphxbabxdvd2g5a0.uaenorth-01.azurewebsites.net'}`;
+
+    const manifest = {
+      id: updateId,
+      createdAt: fileStat.mtime.toISOString(),
+      runtimeVersion: runtimeVersion,
+      launchAsset: {
+        key: bundleKey,
+        hash: bundleHash,
+        contentType: 'application/javascript',
+        url: `${baseUrl}/api/assets?asset=${encodeURIComponent(bundleRelPath)}&runtimeVersion=${encodeURIComponent(runtimeVersion)}&platform=${encodeURIComponent(platform)}`,
+      },
+      assets: [],
+      metadata: {},
+      extra: {
+        expoClient: {
+          name: "Suwan's FundManager",
+          slug: "fundmanager-app",
+        },
+      },
+    };
+
+    res.setHeader('expo-protocol-version', protocolVersion);
+    res.setHeader('expo-sfv-version', 0);
+    res.setHeader('cache-control', 'private, max-age=0');
+    res.setHeader('content-type', 'application/expo+json; charset=utf-8');
+    res.json(manifest);
+  } catch (err) {
+    console.error('[OTA] Error serving manifest:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get('/api/assets', (req, res) => {
+  try {
+    const { asset, runtimeVersion } = req.query;
+    if (!asset || typeof asset !== 'string') {
+      return res.status(400).json({ error: 'asset query param required' });
+    }
+
+    const safeRuntime = (typeof runtimeVersion === 'string' && runtimeVersion) || '1.0.0';
+    const filePath = path.join(__dirname, 'updates', safeRuntime, path.normalize(asset));
+
+    if (!fs.existsSync(filePath)) {
+      return res.status(404).json({ error: 'Asset not found' });
+    }
+
+    res.setHeader('content-type', 'application/javascript');
+    res.sendFile(filePath);
+  } catch (err) {
+    console.error('[OTA] Error serving asset:', err.message);
+    res.status(500).json({ error: err.message });
+  }
 });
 
 // ─── Start ────────────────────────────────────────────────────────────────────

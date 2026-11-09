@@ -10,11 +10,9 @@
       "policy": "appVersion"
     },
     "updates": {
+      "url": "https://fundmanager-api-aphxbabxdvd2g5a0.uaenorth-01.azurewebsites.net/api/manifest",
       "checkAutomatically": "ON_LOAD",
-      "fallbackToCacheTimeout": 3000,
-      "requestHeaders": {
-        "expo-channel-name": "preview"
-      }
+      "fallbackToCacheTimeout": 3000
     },
     "ios": {
       "supportsTablet": true,
