@@ -372,7 +372,7 @@ export const TransactionProvider: React.FC<{ children: ReactNode }> = ({ childre
     await persist(updatedList);
 
     // Auto-sync immediately to MongoDB Atlas in background
-    if (user) {
+    if (user && user.email !== 'demo@fund.local') {
       const itemToSync = isEditing
         ? updatedList.find(t => t.id === input.id)
         : updatedList[0];
@@ -409,7 +409,7 @@ export const TransactionProvider: React.FC<{ children: ReactNode }> = ({ childre
     await persist(updatedList);
 
     // Auto-delete from MongoDB Atlas in background
-    if (user) {
+    if (user && user.email !== 'demo@fund.local') {
       const delUrl = `/api/transactions/${encodeURIComponent(id)}?userId=${encodeURIComponent(user.id)}&email=${encodeURIComponent(user.email)}`;
       apiFetchWithTimeout(delUrl, undefined, 8000, 'DELETE').catch(() => {});
     }

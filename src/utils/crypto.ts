@@ -1,15 +1,39 @@
-/**
- * Cryptographic & validation utilities for secure local data storage
- */
+import * as Crypto from 'expo-crypto';
 
+/**
+ * Generates a cryptographically secure UUIDv4 (CSPRNG)
+ */
 export const uid = (): string => {
-  return Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+  try {
+    return Crypto.randomUUID();
+  } catch {
+    // Fallback if native crypto provider is not available
+    return (
+      Date.now().toString(36) +
+      Math.random().toString(36).slice(2, 10) +
+      Math.random().toString(36).slice(2, 10)
+    );
+  }
 };
 
 /**
- * Robust salted DJB2 hash matching the user's hashing algorithm
+ * Secret salt namespace for client-side password hashing
  */
-export const hashPassword = (email: string, pass: string): string => {
+const PASSWORD_SALT_PREFIX = 'suwan_fm_sec_v3_sha256_';
+
+/**
+ * Military-grade SHA-256 cryptographic password hash with salting
+ */
+export const hashPassword = async (email: string, pass: string): Promise<string> => {
+  const cleanEmail = email.trim().toLowerCase();
+  const payload = `${PASSWORD_SALT_PREFIX}:${cleanEmail}:${pass}`;
+  return await Crypto.digestStringAsync(Crypto.CryptoDigestAlgorithm.SHA256, payload);
+};
+
+/**
+ * Legacy 32-bit DJB2 hash — retained strictly for backward-compatible migration of pre-v1.0.4 cached credentials
+ */
+export const legacyDjb2Hash = (email: string, pass: string): string => {
   const str = email.trim().toLowerCase() + ':' + pass;
   let h = 5381;
   for (let i = 0; i < str.length; i++) {
@@ -19,8 +43,8 @@ export const hashPassword = (email: string, pass: string): string => {
 };
 
 export const sanitizeString = (str: string, maxLength: number = 100): string => {
-  if (!str) return '';
-  return str.trim().slice(0, maxLength);
+  if (!str || typeof str !== 'string') return '';
+  return str.replace(/[\x00-\x1F\x7F]/g, '').trim().slice(0, maxLength);
 };
 
 export const sanitizeAmount = (amountInput: string | number): number | null => {
@@ -30,4 +54,3 @@ export const sanitizeAmount = (amountInput: string | number): number | null => {
   }
   return Math.round(parsed * 100) / 100;
 };
-

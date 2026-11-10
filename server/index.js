@@ -55,6 +55,25 @@ app.use(
 // Limit JSON payload to 500KB to prevent memory exhaustion DoS attacks
 app.use(express.json({ limit: '500kb' }));
 
+// Recursive NoSQL injection defense (strips keys starting with $ or containing .)
+function sanitizeNoSql(obj) {
+  if (!obj || typeof obj !== 'object') return;
+  for (const key of Object.keys(obj)) {
+    if (key.startsWith('$') || key.includes('.')) {
+      delete obj[key];
+    } else if (typeof obj[key] === 'object') {
+      sanitizeNoSql(obj[key]);
+    }
+  }
+}
+
+app.use((req, res, next) => {
+  if (req.body) sanitizeNoSql(req.body);
+  if (req.query) sanitizeNoSql(req.query);
+  if (req.params) sanitizeNoSql(req.params);
+  next();
+});
+
 // ─── 3. In-Memory Sliding-Window Rate Limiter ────────────────────────────────
 function createRateLimiter({ windowMs, maxRequests, message }) {
   const hits = new Map();
@@ -162,9 +181,10 @@ const ServerTransaction = mongoose.model('Transaction', transactionSchema);
 // ─── 7. MongoDB Connection ───────────────────────────────────────────────────
 mongoose
   .connect(MONGO_URI)
-  .then(() => console.log('✅ Connected to MongoDB Atlas (cluster0.pbap0ap.mongodb.net/fundmanager)'))
+  .then(() => console.log('✅ Connected to MongoDB Atlas'))
   .catch(err => {
-    console.error('❌ MongoDB connection error:', err.message);
+    const safeMsg = (err.message || '').replace(/:([^:@]+)@/, ':***@');
+    console.error('❌ MongoDB connection error:', safeMsg);
     process.exit(1);
   });
 
@@ -173,7 +193,7 @@ const makeToken = (user) =>
   jwt.sign(
     { id: user._id.toString(), email: user.email },
     JWT_SECRET,
-    { expiresIn: '60d' }
+    { algorithm: 'HS256', expiresIn: '60d' }
   );
 
 const sanitizeUser = (u) => ({
@@ -196,7 +216,7 @@ const requireAuth = (req, res, next) => {
   }
 
   try {
-    const payload = jwt.verify(token, JWT_SECRET);
+    const payload = jwt.verify(token, JWT_SECRET, { algorithms: ['HS256'] });
     req.user = payload; // { id, email }
     next();
   } catch {

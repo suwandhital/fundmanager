@@ -11,45 +11,66 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as SecureStore from 'expo-secure-store';
 import * as LocalAuthentication from 'expo-local-authentication';
 import { User } from '../types';
-import { uid, hashPassword } from '../utils/crypto';
+import { uid, hashPassword, legacyDjb2Hash } from '../utils/crypto';
 
 // ─── Storage Keys (Persistent Local-First Storage) ───────────────────────────
-const KEY_SESSION = 'fm.session.active.v6';
-const KEY_USERS = 'fm.users.local.v6';
-const KEY_BIO_ENABLED = 'fm.bio.enabled.v6';
-const KEY_BIO_USER = 'fm.bio.user.v6';
+const KEY_SESSION = 'fm.session.active.v7';
+const KEY_USERS = 'fm.users.local.v7';
+const KEY_BIO_ENABLED = 'fm.bio.enabled.v7';
+const KEY_BIO_USER = 'fm.bio.user.v7';
 
-// ─── Bulletproof Cross-Platform Storage ──────────────────────────────────────
+// Legacy keys for backward-compatible migration
+const LEGACY_USERS_KEY = 'fm.users.local.v6';
+const LEGACY_SESSION_KEY = 'fm.session.active.v6';
+
+// ─── Hardware-Backed Cross-Platform Secure Storage ──────────────────────────
 async function secureSet(key: string, val: string): Promise<void> {
-  try {
-    if (Platform.OS !== 'web') {
-      await SecureStore.setItemAsync(key, val);
+  if (Platform.OS !== 'web') {
+    try {
+      await SecureStore.setItemAsync(key, val, {
+        keychainAccessible: SecureStore.AFTER_FIRST_UNLOCK,
+      });
+      // Purge any unencrypted plaintext copy from AsyncStorage
+      await AsyncStorage.removeItem(key).catch(() => {});
+      return;
+    } catch (e) {
+      console.warn('SecureStore write fallback:', e);
     }
-  } catch {
-    // fallback
   }
   await AsyncStorage.setItem(key, val).catch(() => {});
 }
 
 async function secureGet(key: string): Promise<string | null> {
-  try {
-    if (Platform.OS !== 'web') {
-      const v = await SecureStore.getItemAsync(key);
+  if (Platform.OS !== 'web') {
+    try {
+      const v = await SecureStore.getItemAsync(key, {
+        keychainAccessible: SecureStore.AFTER_FIRST_UNLOCK,
+      });
       if (v !== null) return v;
+    } catch {
+      // Fall through to migration check
     }
-  } catch {
-    // fallback
   }
-  return AsyncStorage.getItem(key).catch(() => null);
+
+  // Check if legacy unmigrated data exists in AsyncStorage
+  const legacy = await AsyncStorage.getItem(key).catch(() => null);
+  if (legacy && Platform.OS !== 'web') {
+    try {
+      // Migrate legacy plaintext into hardware-backed SecureStore
+      await SecureStore.setItemAsync(key, legacy, {
+        keychainAccessible: SecureStore.AFTER_FIRST_UNLOCK,
+      });
+      await AsyncStorage.removeItem(key).catch(() => {});
+    } catch {}
+  }
+  return legacy;
 }
 
 async function secureDelete(key: string): Promise<void> {
-  try {
-    if (Platform.OS !== 'web') {
+  if (Platform.OS !== 'web') {
+    try {
       await SecureStore.deleteItemAsync(key);
-    }
-  } catch {
-    // fallback
+    } catch {}
   }
   await AsyncStorage.removeItem(key).catch(() => {});
 }
@@ -170,12 +191,21 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         setIsBiometricEnabled(bioFlag === 'true');
 
         // 3. Restore persistent session — user stays logged in until explicit logout!
-        const rawSession = await secureGet(KEY_SESSION);
-        if (rawSession) {
-          const session = JSON.parse(rawSession);
-          if (session?.user) {
-            setUser(session.user);
+        let rawSession = await secureGet(KEY_SESSION);
+        if (!rawSession) {
+          rawSession = await secureGet(LEGACY_SESSION_KEY);
+          if (rawSession) {
+            await secureSet(KEY_SESSION, rawSession);
+            await secureDelete(LEGACY_SESSION_KEY);
           }
+        }
+        if (rawSession) {
+          try {
+            const session = JSON.parse(rawSession);
+            if (session?.user) {
+              setUser(session.user);
+            }
+          } catch {}
         }
       } catch (err) {
         console.error('Auth initialization error:', err);
@@ -196,7 +226,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         if (!n || !e || !password) return { success: false, error: 'All fields required' };
         if (password.length < 4) return { success: false, error: 'Password must be at least 4 characters' };
 
-        const pHash = hashPassword(e, password);
+        const pHash = await hashPassword(e, password);
 
         // 1. Try cloud registration to MongoDB Atlas first
         let remoteUser: User | null = null;
@@ -223,15 +253,18 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           createdAt: Date.now(),
         };
 
-        // 2. Save locally immediately
-        const rawUsers = await AsyncStorage.getItem(KEY_USERS).catch(() => null);
+        // 2. Save locally immediately to Hardware-Backed SecureStore
+        let rawUsers = await secureGet(KEY_USERS);
+        if (!rawUsers) {
+          rawUsers = await secureGet(LEGACY_USERS_KEY);
+        }
         const localUsers: Record<string, any> = rawUsers ? JSON.parse(rawUsers) : {};
         localUsers[e] = {
           ...userObj,
           passwordHash: pHash,
           synced: !!remoteUser,
         };
-        await AsyncStorage.setItem(KEY_USERS, JSON.stringify(localUsers)).catch(() => {});
+        await secureSet(KEY_USERS, JSON.stringify(localUsers));
 
         // 3. Save persistent session immediately (user is logged in!)
         await secureSet(KEY_SESSION, JSON.stringify({ user: userObj, token: remoteToken }));
@@ -254,7 +287,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         if (!e || !password) return { success: false, error: 'Fill in both fields' };
         if (password.length < 4) return { success: false, error: 'Password must be at least 4 characters' };
 
-        const pHash = hashPassword(e, password);
+        const pHash = await hashPassword(e, password);
 
         // 1. Try cloud authentication with MongoDB Atlas
         let remoteUser: User | null = null;
@@ -280,8 +313,11 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           return { success: false, error: serverError };
         }
 
-        // 2. Read local user records
-        const rawUsers = await AsyncStorage.getItem(KEY_USERS).catch(() => null);
+        // 2. Read local user records from SecureStore
+        let rawUsers = await secureGet(KEY_USERS);
+        if (!rawUsers) {
+          rawUsers = await secureGet(LEGACY_USERS_KEY);
+        }
         const localUsers: Record<string, any> = rawUsers ? JSON.parse(rawUsers) : {};
         let userObj: User;
 
@@ -292,12 +328,23 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             passwordHash: pHash,
             synced: true,
           };
-          await AsyncStorage.setItem(KEY_USERS, JSON.stringify(localUsers)).catch(() => {});
+          await secureSet(KEY_USERS, JSON.stringify(localUsers));
         } else if (localUsers[e]) {
           // Device is offline, but account was previously logged in on this phone
-          if (localUsers[e].passwordHash && localUsers[e].passwordHash !== pHash) {
+          const storedHash = localUsers[e].passwordHash;
+          let isValid = storedHash === pHash;
+
+          // Backward compatibility: upgrade legacy DJB2 hash to SHA-256 on successful offline login
+          if (!isValid && storedHash && storedHash === legacyDjb2Hash(e, password)) {
+            isValid = true;
+            localUsers[e].passwordHash = pHash;
+            await secureSet(KEY_USERS, JSON.stringify(localUsers));
+          }
+
+          if (!isValid) {
             return { success: false, error: 'Incorrect password' };
           }
+
           userObj = {
             id: localUsers[e].id,
             email: localUsers[e].email,
@@ -437,34 +484,56 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
       const updatedUser: User = { ...user, name: cleanName, email: cleanEmail };
 
-      // Update locally
-      const rawUsers = await AsyncStorage.getItem(KEY_USERS).catch(() => null);
+      // Update locally in Hardware-Backed SecureStore
+      let rawUsers = await secureGet(KEY_USERS);
+      if (!rawUsers) {
+        rawUsers = await secureGet(LEGACY_USERS_KEY);
+      }
       const localUsers: Record<string, any> = rawUsers ? JSON.parse(rawUsers) : {};
 
       const existingHash = localUsers[user.email]?.passwordHash || '';
-      const pHash = newPass ? hashPassword(cleanEmail, newPass) : existingHash;
+      const pHash = newPass ? await hashPassword(cleanEmail, newPass) : existingHash;
 
       delete localUsers[user.email];
       localUsers[cleanEmail] = {
         ...updatedUser,
         passwordHash: pHash,
       };
-      await AsyncStorage.setItem(KEY_USERS, JSON.stringify(localUsers)).catch(() => {});
+      await secureSet(KEY_USERS, JSON.stringify(localUsers));
 
-      await secureSet(KEY_SESSION, JSON.stringify({ user: updatedUser, token: 'profile_token' }));
+      // Preserve active JWT token instead of replacing with dummy
+      const rawSession = await secureGet(KEY_SESSION);
+      let activeToken = 'local_token';
+      if (rawSession) {
+        try {
+          const parsed = JSON.parse(rawSession);
+          if (parsed.token) activeToken = parsed.token;
+        } catch {}
+      }
+
+      await secureSet(KEY_SESSION, JSON.stringify({ user: updatedUser, token: activeToken }));
       if (isBiometricEnabled) {
-        await secureSet(KEY_BIO_USER, JSON.stringify(updatedUser));
+        await secureSet(KEY_BIO_USER, JSON.stringify({ user: updatedUser, token: activeToken }));
       }
       setUser(updatedUser);
 
-      // Sync update to MongoDB Atlas in background
-      apiFetchWithTimeout('/api/auth/profile', {
+      // Sync update to MongoDB Atlas in background and persist refreshed JWT if returned
+      apiFetchWithTimeout<{ success: boolean; token?: string; user?: User }>('/api/auth/profile', {
         userId: user.id,
         name: cleanName,
         email: user.email,
         newEmail: cleanEmail !== user.email ? cleanEmail : undefined,
         password: newPass,
-      }, 4000).catch(() => {});
+      }, 5000)
+        .then(async ({ data }) => {
+          if (data?.token) {
+            await secureSet(KEY_SESSION, JSON.stringify({ user: updatedUser, token: data.token }));
+            if (isBiometricEnabled) {
+              await secureSet(KEY_BIO_USER, JSON.stringify({ user: updatedUser, token: data.token }));
+            }
+          }
+        })
+        .catch(() => {});
 
       return { success: true };
     },
