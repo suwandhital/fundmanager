@@ -109,7 +109,7 @@ const styles = StyleSheet.create({
   },
   currencyPrefix: {
     fontSize: 11,
-    fontWeight: '650' as any,
+    fontWeight: '600',
     color: 'rgba(255,255,255,0.45)',
     letterSpacing: 0.4,
   },
@@ -135,7 +135,7 @@ const styles = StyleSheet.create({
   },
   pillText: {
     fontSize: 10,
-    fontWeight: '650' as any,
+    fontWeight: '600',
     color: 'rgba(255,255,255,0.75)',
   },
   metricsRow: {

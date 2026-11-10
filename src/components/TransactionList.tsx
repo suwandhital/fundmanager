@@ -144,7 +144,7 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     fontSize: 12.5,
-    fontWeight: '650' as any,
+    fontWeight: '600',
     letterSpacing: -0.1,
   },
   countBadge: {
@@ -219,7 +219,7 @@ const styles = StyleSheet.create({
   },
   txAmount: {
     fontSize: 13,
-    fontWeight: '650' as any,
+    fontWeight: '600',
     letterSpacing: -0.2,
     flexShrink: 0,
   },

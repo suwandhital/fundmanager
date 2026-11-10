@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, TextInput, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, TextInput, Text, StyleSheet, TouchableOpacity, Platform } from 'react-native';
 import { useTransactions } from '../context/TransactionContext';
 import { useTheme } from '../theme/ThemeContext';
 import { TypeFilter } from '../types';
@@ -97,7 +97,7 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 13.5,
     paddingVertical: 0,
-    outlineStyle: 'none' as any,
+    ...(Platform.OS === 'web' ? { outlineStyle: 'none' as any } : {}),
   },
   chips: {
     flexDirection: 'row',

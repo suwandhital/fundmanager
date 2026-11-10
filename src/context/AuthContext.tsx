@@ -6,7 +6,7 @@ import React, {
   useCallback,
   ReactNode,
 } from 'react';
-import { Platform, NativeModules } from 'react-native';
+import { Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as SecureStore from 'expo-secure-store';
 import * as LocalAuthentication from 'expo-local-authentication';
@@ -55,32 +55,42 @@ async function secureDelete(key: string): Promise<void> {
 }
 
 // ─── Dynamic API Host Resolution ─────────────────────────────────────────────
-// Supports cloud production (Azure App Service) and local dev / tunnel
+// Supports cloud production (Azure App Service) with zero private network lock-in
+export const PRODUCTION_API_URL = 'https://fundmanager-api-aphxbabxdvd2g5a0.uaenorth-01.azurewebsites.net';
+
 export function getApiBase(): string {
-  // If cloud production API URL is set via environment variable:
-  if (process.env.EXPO_PUBLIC_API_URL) {
+  // If explicitly overridden via environment variable (must be public cloud URL):
+  if (
+    process.env.EXPO_PUBLIC_API_URL &&
+    !process.env.EXPO_PUBLIC_API_URL.includes('192.168.') &&
+    !process.env.EXPO_PUBLIC_API_URL.includes('localhost') &&
+    !process.env.EXPO_PUBLIC_API_URL.includes('10.0.')
+  ) {
     return process.env.EXPO_PUBLIC_API_URL.replace(/\/$/, '');
   }
+
+  // Web check (e.g. if hosted on custom cloud domain)
   if (Platform.OS === 'web' && typeof window !== 'undefined' && window.location) {
-    return window.location.origin;
+    if (
+      window.location.hostname &&
+      window.location.hostname !== 'localhost' &&
+      window.location.hostname !== '127.0.0.1' &&
+      !window.location.hostname.startsWith('192.168.')
+    ) {
+      return window.location.origin;
+    }
   }
-  const scriptURL = (NativeModules as any)?.SourceCode?.scriptURL;
-  if (scriptURL) {
-    try {
-      const match = scriptURL.match(/^(https?:\/\/[^/]+)/);
-      if (match && match[1]) {
-        return match[1];
-      }
-    } catch {}
-  }
-  return 'http://192.168.1.86:8081';
+
+  // Universal Production Cloud API (Azure App Service)
+  // Ensures all mobile devices (cellular, public Wi-Fi, external networks) connect seamlessly
+  return PRODUCTION_API_URL;
 }
 
 // ─── Network Fetch for MongoDB Atlas API ─────────────────────────────────────
 export async function apiFetchWithTimeout<T>(
   path: string,
   body?: object,
-  timeoutMs: number = 4000,
+  timeoutMs: number = 8000,
   method: string = body ? 'POST' : 'GET'
 ): Promise<{ data?: T; error?: string }> {
   const controller = new AbortController();
@@ -95,7 +105,8 @@ export async function apiFetchWithTimeout<T>(
       } catch {}
     }
 
-    const url = `${getApiBase()}${path}`;
+    const base = getApiBase();
+    const url = `${base}${path}`;
     const headers: Record<string, string> = { 'Content-Type': 'application/json' };
     if (token) headers['Authorization'] = `Bearer ${token}`;
 
@@ -106,12 +117,15 @@ export async function apiFetchWithTimeout<T>(
       signal: controller.signal,
     });
     clearTimeout(timer);
-    const json = await res.json();
-    if (!res.ok) return { error: json.error || `Error ${res.status}` };
+    const json = await res.json().catch(() => null);
+    if (!res.ok) {
+      return { error: json?.error || `Server responded with status ${res.status}` };
+    }
     return { data: json as T };
   } catch (err: any) {
     clearTimeout(timer);
-    return { error: err?.message || 'Offline' };
+    const isAbort = err?.name === 'AbortError' || err?.message?.includes('aborted');
+    return { error: isAbort ? 'Connection timed out — please try again' : 'Server unreachable (offline)' };
   }
 }
 

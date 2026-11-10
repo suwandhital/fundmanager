@@ -30,6 +30,8 @@ jobs:
         run: npm ci
 
       - name: Export latest Android Over-The-Air bundle
+        env:
+          EXPO_PUBLIC_API_URL: https://fundmanager-api-aphxbabxdvd2g5a0.uaenorth-01.azurewebsites.net
         run: |
           npx expo export -p android --output-dir server/updates/1.0.0
 

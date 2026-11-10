@@ -447,7 +447,7 @@ const styles = StyleSheet.create({
   },
   profileEmail: {
     fontSize: 14.5,
-    fontWeight: '650' as any,
+    fontWeight: '600',
   },
   profileSince: {
     fontSize: 11.5,
@@ -458,7 +458,7 @@ const styles = StyleSheet.create({
   },
   fieldLabel: {
     fontSize: 11,
-    fontWeight: '650' as any,
+    fontWeight: '600',
     letterSpacing: 0.5,
     textTransform: 'uppercase',
     paddingLeft: 2,

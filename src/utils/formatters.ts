@@ -20,7 +20,20 @@ export const pad2 = (n: number): string => String(n).padStart(2, '0');
 export const ymd = (d: Date): string =>
   `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
 
-export const parseDate = (s: string): Date => new Date(s + 'T00:00:00');
+export const parseDate = (s: string): Date => {
+  if (!s || typeof s !== 'string') return new Date();
+  const parts = s.split('-');
+  if (parts.length === 3) {
+    const y = parseInt(parts[0], 10);
+    const m = parseInt(parts[1], 10) - 1;
+    const d = parseInt(parts[2], 10);
+    if (!isNaN(y) && !isNaN(m) && !isNaN(d)) {
+      return new Date(y, m, d);
+    }
+  }
+  const d = new Date(s);
+  return isNaN(d.getTime()) ? new Date() : d;
+};
 
 export const num = (n: number): string => {
   return Number(n).toLocaleString(LOCALE, {

@@ -341,7 +341,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 12,
     fontSize: 14,
-    outlineStyle: 'none' as any,
+    ...(Platform.OS === 'web' ? { outlineStyle: 'none' as any } : {}),
   },
   passwordWrap: {
     flexDirection: 'row',
@@ -356,7 +356,7 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 14,
     paddingVertical: 0,
-    outlineStyle: 'none' as any,
+    ...(Platform.OS === 'web' ? { outlineStyle: 'none' as any } : {}),
   },
   errorBand: {
     borderRadius: 10,

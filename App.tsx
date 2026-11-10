@@ -5,19 +5,22 @@ import * as SplashScreen from 'expo-splash-screen';
 import { ThemeProvider, useTheme } from './src/theme/ThemeContext';
 import { ToastProvider } from './src/context/ToastContext';
 import { AuthProvider, useAuth } from './src/context/AuthContext';
-import { TransactionProvider } from './src/context/TransactionContext';
+import { TransactionProvider, useTransactions } from './src/context/TransactionContext';
 import { MobileFrame } from './src/components/layout/MobileFrame';
 import { AuthScreen } from './src/screens/AuthScreen';
 import { MainScreen } from './src/screens/MainScreen';
 
-// Keep native splash screen visible until initial auth and theme states are ready
+// Keep native splash screen visible until initial auth, theme, and data states are ready
 SplashScreen.preventAutoHideAsync().catch(() => {});
 
 const RootApp: React.FC = () => {
   const { user, isLoading: isAuthLoading } = useAuth();
   const { themeMode, isThemeLoaded } = useTheme();
+  const { isLoading: isTxLoading } = useTransactions();
 
-  const isReady = !isAuthLoading && isThemeLoaded;
+  // Full state readiness: auth + theme + initial cached transactions loaded
+  // Prevents any flashing numbers, blank charts, or visual glitch on startup
+  const isReady = !isAuthLoading && isThemeLoaded && (!user || !isTxLoading);
 
   useEffect(() => {
     if (isReady) {

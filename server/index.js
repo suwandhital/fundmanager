@@ -32,6 +32,7 @@ const User = mongoose.model('User', userSchema);
 
 const transactionSchema = new mongoose.Schema({
   userId: { type: String, required: true, index: true },
+  userEmail: { type: String, default: '', lowercase: true, trim: true, index: true },
   txId: { type: String, required: true },
   type: { type: String, required: true },
   amount: { type: Number, required: true },
@@ -43,7 +44,8 @@ const transactionSchema = new mongoose.Schema({
   time: { type: Number, required: true },
 });
 
-transactionSchema.index({ userId: 1, txId: 1 }, { unique: true });
+transactionSchema.index({ userId: 1, txId: 1 });
+transactionSchema.index({ userEmail: 1, txId: 1 });
 const ServerTransaction = mongoose.model('Transaction', transactionSchema);
 
 // ─── MongoDB connect ───────────────────────────────────────────────────────────
@@ -235,13 +237,23 @@ const handleProfileUpdate = async (req, res) => {
 app.put('/api/auth/profile', handleProfileUpdate);
 app.post('/api/auth/profile', handleProfileUpdate);
 
-// Fetch user transactions from MongoDB Atlas
+// Fetch user transactions from MongoDB Atlas (by userId, email, or both)
 app.get('/api/transactions', async (req, res) => {
   try {
-    const { userId } = req.query;
-    if (!userId) return res.status(400).json({ error: 'userId required' });
+    const { userId, userEmail, email } = req.query;
+    const cleanEmail = (userEmail || email || '').toLowerCase().trim();
+    if (!userId && !cleanEmail) return res.status(400).json({ error: 'userId or email required' });
 
-    const docs = await ServerTransaction.find({ userId }).sort({ time: -1 }).lean();
+    const query = {};
+    if (userId && cleanEmail) {
+      query.$or = [{ userId }, { userEmail: cleanEmail }];
+    } else if (userId) {
+      query.userId = userId;
+    } else {
+      query.userEmail = cleanEmail;
+    }
+
+    const docs = await ServerTransaction.find(query).sort({ time: -1 }).lean();
     const transactions = docs.map(d => ({
       id: d.txId,
       type: d.type,
@@ -255,7 +267,7 @@ app.get('/api/transactions', async (req, res) => {
       synced: true,
     }));
 
-    console.log(`[API] Fetched ${transactions.length} transactions from MongoDB Atlas for userId: ${userId}`);
+    console.log(`[API] Fetched ${transactions.length} transactions from MongoDB Atlas for ${userId || cleanEmail}`);
     res.json({ transactions });
   } catch (err) {
     console.error('Get transactions error:', err.message);
@@ -267,13 +279,20 @@ app.get('/api/transactions', async (req, res) => {
 app.delete('/api/transactions/:txId', async (req, res) => {
   try {
     const { txId } = req.params;
-    const { userId } = req.query;
+    const { userId, userEmail, email } = req.query;
     if (!txId) return res.status(400).json({ error: 'txId required' });
 
+    const cleanEmail = (userEmail || email || '').toLowerCase().trim();
     const query = { txId };
-    if (userId) query.userId = userId;
+    if (userId && cleanEmail) {
+      query.$or = [{ userId }, { userEmail: cleanEmail }];
+    } else if (userId) {
+      query.userId = userId;
+    } else if (cleanEmail) {
+      query.userEmail = cleanEmail;
+    }
 
-    const result = await ServerTransaction.deleteOne(query);
+    const result = await ServerTransaction.deleteMany(query);
     console.log(`[API] Deleted transaction ${txId} from MongoDB Atlas:`, result.deletedCount);
     res.json({ success: true, deletedCount: result.deletedCount });
   } catch (err) {
@@ -285,41 +304,54 @@ app.delete('/api/transactions/:txId', async (req, res) => {
 // Sync transactions to MongoDB Atlas
 app.post('/api/sync', async (req, res) => {
   try {
-    const { userId, transactions: incoming } = req.body;
-    console.log(`[API] Sync request from userId: ${userId}, count: ${incoming?.length || 0}`);
+    const { userId, userEmail, email, transactions: incoming } = req.body;
+    const cleanEmail = (userEmail || email || '').toLowerCase().trim();
+    console.log(`[API] Sync request from userId: ${userId}, email: ${cleanEmail}, count: ${incoming?.length || 0}`);
 
-    if (!userId || !Array.isArray(incoming)) {
-      return res.status(400).json({ error: 'userId and transactions array required' });
+    if ((!userId && !cleanEmail) || !Array.isArray(incoming)) {
+      return res.status(400).json({ error: 'userId or email, and transactions array required' });
     }
 
     if (incoming.length === 0) {
       return res.json({ success: true, count: 0 });
     }
 
-    const bulkOps = incoming.map(t => ({
-      updateOne: {
-        filter: { userId, txId: t.id },
-        update: {
-          $set: {
-            userId,
-            txId: t.id,
-            type: t.type,
-            amount: t.amount,
-            note: t.note || '',
-            category: t.category,
-            date: t.date,
-            createdAt: t.createdAt,
-            updatedAt: t.updatedAt,
-            time: t.time,
+    const bulkOps = incoming.map(t => {
+      const filter = { txId: t.id };
+      if (userId && cleanEmail) {
+        filter.$or = [{ userId }, { userEmail: cleanEmail }];
+      } else if (userId) {
+        filter.userId = userId;
+      } else {
+        filter.userEmail = cleanEmail;
+      }
+
+      return {
+        updateOne: {
+          filter,
+          update: {
+            $set: {
+              userId: userId || t.userId || 'offline_user',
+              userEmail: cleanEmail,
+              txId: t.id,
+              type: t.type,
+              amount: Number(t.amount),
+              note: t.note || '',
+              category: t.category,
+              date: t.date,
+              createdAt: Number(t.createdAt) || Date.now(),
+              updatedAt: Number(t.updatedAt) || Date.now(),
+              time: Number(t.time) || Date.now(),
+            },
           },
+          upsert: true,
         },
-        upsert: true,
-      },
-    }));
+      };
+    });
 
     const result = await ServerTransaction.bulkWrite(bulkOps);
     console.log(
-      `[API] ✅ Synced ${bulkOps.length} transactions to MongoDB Atlas for ${userId} (upserted: ${result.upsertedCount}, modified: ${result.modifiedCount})`
+      `[API] ✅ Synced ${bulkOps.length} transactions to MongoDB Atlas for ${userId || cleanEmail} (upserted: ${result.upsertedCount}, modified: ${result.modifiedCount})`
     );
     res.json({ success: true, count: bulkOps.length });
   } catch (err) {

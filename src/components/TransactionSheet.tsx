@@ -468,7 +468,7 @@ const styles = StyleSheet.create({
   },
   toggleBtnText: {
     fontSize: 13,
-    fontWeight: '650' as any,
+    fontWeight: '600',
   },
   amountWrap: {
     flexDirection: 'row',
@@ -501,7 +501,7 @@ const styles = StyleSheet.create({
   },
   fieldLabel: {
     fontSize: 11,
-    fontWeight: '650' as any,
+    fontWeight: '600',
     letterSpacing: 0.5,
     textTransform: 'uppercase',
     paddingLeft: 2,

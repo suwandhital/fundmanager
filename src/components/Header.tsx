@@ -145,7 +145,7 @@ const styles = StyleSheet.create({
   },
   userName: {
     fontSize: 16,
-    fontWeight: '650' as any,
+    fontWeight: '600',
     letterSpacing: -0.2,
     marginTop: 1,
   },

@@ -76,7 +76,11 @@ export const TransactionProvider: React.FC<{ children: ReactNode }> = ({ childre
       }
 
       try {
-        const raw = await AsyncStorage.getItem(KEY_TX(user.id));
+        // Read local storage (checking user.id and user.email for seamless offline/online continuity)
+        let raw = await AsyncStorage.getItem(KEY_TX(user.id));
+        if (!raw && user.email) {
+          raw = await AsyncStorage.getItem(KEY_TX(user.email));
+        }
         if (!isMounted) return;
 
         let list: Transaction[] = [];
@@ -94,19 +98,24 @@ export const TransactionProvider: React.FC<{ children: ReactNode }> = ({ childre
         // If demo user has empty transactions, seed realistic data
         if (list.length === 0 && user.email === 'demo@fund.local') {
           list = seedDemoTransactions();
-          await AsyncStorage.setItem(KEY_TX(user.id), JSON.stringify(list)).catch(() => {});
+          const json = JSON.stringify(list);
+          await AsyncStorage.setItem(KEY_TX(user.id), json).catch(() => {});
+          if (user.email) await AsyncStorage.setItem(KEY_TX(user.email), json).catch(() => {});
         }
 
         list.sort((a, b) => b.time - a.time);
         if (isMounted) {
           setTransactions(list);
+          // Cached transactions loaded from disk — allow screen to display immediately
+          setIsLoading(false);
         }
 
-        // Fetch from MongoDB Atlas and merge
+        // Fetch from MongoDB Atlas in background and merge
+        const queryUrl = `/api/transactions?userId=${encodeURIComponent(user.id)}&email=${encodeURIComponent(user.email)}`;
         apiFetchWithTimeout<{ transactions: Transaction[] }>(
-          `/api/transactions?userId=${user.id}`,
+          queryUrl,
           undefined,
-          4000
+          8000
         )
           .then(async ({ data }) => {
             if (!isMounted || !data?.transactions) return;
@@ -119,16 +128,27 @@ export const TransactionProvider: React.FC<{ children: ReactNode }> = ({ childre
                 // Keep local if local has newer unsynced changes
                 if (!l.synced || !map.has(l.id)) {
                   map.set(l.id, l);
+                } else {
+                  const rem = map.get(l.id)!;
+                  if ((l.updatedAt || l.time || 0) > (rem.updatedAt || rem.time || 0)) {
+                    map.set(l.id, l);
+                  }
                 }
               }
               const merged = Array.from(map.values()).sort((a, b) => b.time - a.time);
               if (isMounted) {
                 setTransactions(merged);
               }
-              await AsyncStorage.setItem(KEY_TX(user.id), JSON.stringify(merged)).catch(() => {});
+              const json = JSON.stringify(merged);
+              await AsyncStorage.setItem(KEY_TX(user.id), json).catch(() => {});
+              if (user.email) await AsyncStorage.setItem(KEY_TX(user.email), json).catch(() => {});
             } else if (list.length > 0) {
               // Local has data but remote is empty — sync local up to MongoDB Atlas
-              apiFetchWithTimeout('/api/sync', { userId: user.id, transactions: list }, 4000).catch(() => {});
+              apiFetchWithTimeout('/api/sync', {
+                userId: user.id,
+                email: user.email,
+                transactions: list,
+              }, 8000).catch(() => {});
             }
           })
           .catch(() => {});
@@ -152,7 +172,11 @@ export const TransactionProvider: React.FC<{ children: ReactNode }> = ({ childre
   const persist = useCallback(async (list: Transaction[]) => {
     if (!user) return;
     try {
-      await AsyncStorage.setItem(KEY_TX(user.id), JSON.stringify(list));
+      const json = JSON.stringify(list);
+      await AsyncStorage.setItem(KEY_TX(user.id), json);
+      if (user.email) {
+        await AsyncStorage.setItem(KEY_TX(user.email), json).catch(() => {});
+      }
     } catch (err) {
       console.error('Failed to persist transactions:', err);
     }
@@ -353,8 +377,8 @@ export const TransactionProvider: React.FC<{ children: ReactNode }> = ({ childre
       if (itemToSync) {
         apiFetchWithTimeout<{ success: boolean }>(
           '/api/sync',
-          { userId: user.id, transactions: [itemToSync] },
-          4000
+          { userId: user.id, email: user.email, transactions: [itemToSync] },
+          8000
         )
           .then(({ data }) => {
             if (data?.success) {
@@ -383,12 +407,8 @@ export const TransactionProvider: React.FC<{ children: ReactNode }> = ({ childre
 
     // Auto-delete from MongoDB Atlas in background
     if (user) {
-      apiFetchWithTimeout(
-        `/api/transactions/${id}?userId=${user.id}`,
-        undefined,
-        4000,
-        'DELETE'
-      ).catch(() => {});
+      const delUrl = `/api/transactions/${encodeURIComponent(id)}?userId=${encodeURIComponent(user.id)}&email=${encodeURIComponent(user.email)}`;
+      apiFetchWithTimeout(delUrl, undefined, 8000, 'DELETE').catch(() => {});
     }
 
     toast('Transaction deleted');
@@ -401,38 +421,64 @@ export const TransactionProvider: React.FC<{ children: ReactNode }> = ({ childre
     setToDate('');
   }, []);
 
-  // Sync with MongoDB Atlas when online, saves locally when offline
+  // Sync with MongoDB Atlas (two-way merge: pulls remote + pushes local)
   const syncNow = useCallback(async () => {
-    setIsSyncing(true);
-    const pending = transactions.filter(t => !t.synced).length;
+    if (!user) {
+      toast('Please login to sync');
+      return;
+    }
 
+    setIsSyncing(true);
     try {
-      if (user) {
-        const toSync = pending > 0 ? transactions.filter(t => !t.synced) : transactions;
-        if (toSync.length > 0) {
-          const { data, error } = await apiFetchWithTimeout<{ success: boolean; count: number }>(
-            '/api/sync',
-            { userId: user.id, transactions: toSync },
-            5000
-          );
-          if (data && data.success) {
-            const synced = transactions.map(t => ({ ...t, synced: true }));
-            setTransactions(synced);
-            await persist(synced);
-            toast(`Synced ${toSync.length} transaction${toSync.length > 1 ? 's' : ''} to MongoDB Atlas ✓`);
-            return;
+      // 1. Fetch remote transactions from MongoDB Atlas
+      const queryUrl = `/api/transactions?userId=${encodeURIComponent(user.id)}&email=${encodeURIComponent(user.email)}`;
+      const { data: remoteData, error: fetchError } = await apiFetchWithTimeout<{ transactions: Transaction[] }>(
+        queryUrl,
+        undefined,
+        8000
+      );
+
+      let workingList = [...transactions];
+      if (remoteData?.transactions) {
+        const remoteList = remoteData.transactions.map(migrateTx);
+        const map = new Map<string, Transaction>();
+        for (const r of remoteList) map.set(r.id, r);
+        for (const l of workingList) {
+          if (!l.synced || !map.has(l.id)) {
+            map.set(l.id, l);
           } else {
-            toast(error || 'Sync failed');
-            return;
+            const rem = map.get(l.id)!;
+            if ((l.updatedAt || l.time || 0) > (rem.updatedAt || rem.time || 0)) {
+              map.set(l.id, l);
+            }
           }
+        }
+        workingList = Array.from(map.values()).sort((a, b) => b.time - a.time);
+      }
+
+      // 2. Push all transactions to MongoDB Atlas
+      if (workingList.length > 0) {
+        const { data, error: syncError } = await apiFetchWithTimeout<{ success: boolean; count: number }>(
+          '/api/sync',
+          { userId: user.id, email: user.email, transactions: workingList },
+          10000
+        );
+
+        if (data?.success) {
+          const synced = workingList.map(t => ({ ...t, synced: true }));
+          setTransactions(synced);
+          await persist(synced);
+          toast(`Synced ${workingList.length} transaction${workingList.length > 1 ? 's' : ''} to MongoDB Atlas ✓`);
+          return;
         } else {
-          toast('No transactions to sync');
+          toast(syncError || fetchError || 'Sync failed — check connection');
           return;
         }
+      } else {
+        toast('No transactions to sync');
       }
-      toast('Please login to sync');
-    } catch {
-      toast('Sync failed — check connection');
+    } catch (err: any) {
+      toast(err?.message || 'Sync failed — check connection');
     } finally {
       setTimeout(() => setIsSyncing(false), 300);
     }
