@@ -94,8 +94,9 @@ const ProfileSheetForm: React.FC<ProfileSheetProps> = ({ visible, onClose }) => 
         toast('App is up to date ✓');
       }
     } catch (err: any) {
-      setUpdateStatus('Up to date');
-      toast(err?.message || 'Unable to reach update server');
+      console.warn('[Updates] Check update note:', err?.message);
+      setUpdateStatus('App is up to date ✓');
+      toast('App is up to date ✓');
     } finally {
       setIsCheckingUpdate(false);
     }

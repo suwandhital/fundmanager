@@ -6,6 +6,7 @@ const cors = require('cors');
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
+const FormData = require('form-data');
 
 const app = express();
 app.use(cors());
@@ -346,6 +347,25 @@ function convertSHA256HashToUUID(value) {
   return `${value.slice(0, 8)}-${value.slice(8, 12)}-${value.slice(12, 16)}-${value.slice(16, 20)}-${value.slice(20, 32)}`;
 }
 
+function getMimeType(ext) {
+  if (!ext) return 'application/octet-stream';
+  const clean = ext.toLowerCase().replace(/^\./, '');
+  const types = {
+    hbc: 'application/javascript',
+    js: 'application/javascript',
+    bundle: 'application/javascript',
+    json: 'application/json',
+    png: 'image/png',
+    jpg: 'image/jpeg',
+    jpeg: 'image/jpeg',
+    webp: 'image/webp',
+    svg: 'image/svg+xml',
+    ttf: 'font/ttf',
+    otf: 'font/otf',
+  };
+  return types[clean] || 'application/octet-stream';
+}
+
 app.get('/api/manifest', (req, res) => {
   try {
     const platform = req.headers['expo-platform'] || req.query.platform || 'android';
@@ -357,6 +377,18 @@ app.get('/api/manifest', (req, res) => {
     const metadataPath = path.join(updateDir, 'metadata.json');
 
     if (!fs.existsSync(metadataPath)) {
+      if (protocolVersion === 1) {
+        const form = new FormData();
+        form.append('directive', JSON.stringify({ type: 'noUpdateAvailable' }), {
+          contentType: 'application/json',
+          header: { 'content-type': 'application/json; charset=utf-8' },
+        });
+        res.setHeader('expo-protocol-version', 1);
+        res.setHeader('expo-sfv-version', 0);
+        res.setHeader('cache-control', 'private, max-age=0');
+        res.setHeader('content-type', `multipart/mixed; boundary=${form.getBoundary()}`);
+        return res.status(200).send(form.getBuffer());
+      }
       return res.status(204).end();
     }
 
@@ -367,8 +399,20 @@ app.get('/api/manifest', (req, res) => {
     const hashId = crypto.createHash('sha256').update(metadataRaw).digest('hex');
     const updateId = convertSHA256HashToUUID(hashId);
 
-    // If client is already running this exact update ID, nothing to download
+    // If client is already running this exact update ID:
     if (currentUpdateId === updateId) {
+      if (protocolVersion === 1) {
+        const form = new FormData();
+        form.append('directive', JSON.stringify({ type: 'noUpdateAvailable' }), {
+          contentType: 'application/json',
+          header: { 'content-type': 'application/json; charset=utf-8' },
+        });
+        res.setHeader('expo-protocol-version', 1);
+        res.setHeader('expo-sfv-version', 0);
+        res.setHeader('cache-control', 'private, max-age=0');
+        res.setHeader('content-type', `multipart/mixed; boundary=${form.getBoundary()}`);
+        return res.status(200).send(form.getBuffer());
+      }
       return res.status(204).end();
     }
 
@@ -390,6 +434,26 @@ app.get('/api/manifest', (req, res) => {
 
     const baseUrl = `https://${req.get('host') || 'fundmanager-api-aphxbabxdvd2g5a0.uaenorth-01.azurewebsites.net'}`;
 
+    // Map assets if present in metadata
+    const assets = (platformMetadata.assets || []).map((asset) => {
+      const assetRelPath = asset.path;
+      const assetFullPath = path.join(updateDir, assetRelPath);
+      let assetHash = '';
+      let assetKey = asset.ext || 'asset';
+      if (fs.existsSync(assetFullPath)) {
+        const buf = fs.readFileSync(assetFullPath);
+        assetHash = getBase64URLEncoding(crypto.createHash('sha256').update(buf).digest('base64'));
+        assetKey = crypto.createHash('md5').update(buf).digest('hex');
+      }
+      return {
+        key: assetKey,
+        hash: assetHash,
+        fileExtension: asset.ext ? `.${asset.ext.replace(/^\./, '')}` : '',
+        contentType: getMimeType(asset.ext),
+        url: `${baseUrl}/api/assets?asset=${encodeURIComponent(assetRelPath)}&runtimeVersion=${encodeURIComponent(runtimeVersion)}&platform=${encodeURIComponent(platform)}`,
+      };
+    });
+
     const manifest = {
       id: updateId,
       createdAt: fileStat.mtime.toISOString(),
@@ -397,10 +461,11 @@ app.get('/api/manifest', (req, res) => {
       launchAsset: {
         key: bundleKey,
         hash: bundleHash,
+        fileExtension: '.bundle',
         contentType: 'application/javascript',
         url: `${baseUrl}/api/assets?asset=${encodeURIComponent(bundleRelPath)}&runtimeVersion=${encodeURIComponent(runtimeVersion)}&platform=${encodeURIComponent(platform)}`,
       },
-      assets: [],
+      assets: assets,
       metadata: {},
       extra: {
         expoClient: {
@@ -410,8 +475,33 @@ app.get('/api/manifest', (req, res) => {
       },
     };
 
-    res.setHeader('expo-protocol-version', protocolVersion);
-    res.setHeader('expo-sfv-version', 0);
+    // Protocol v1 requires multipart/mixed response with manifest and extensions
+    if (protocolVersion === 1) {
+      const assetRequestHeaders = {};
+      [...manifest.assets, manifest.launchAsset].forEach((asset) => {
+        assetRequestHeaders[asset.key] = {};
+      });
+
+      const form = new FormData();
+      form.append('manifest', JSON.stringify(manifest), {
+        contentType: 'application/json',
+        header: {
+          'content-type': 'application/json; charset=utf-8',
+        },
+      });
+      form.append('extensions', JSON.stringify({ assetRequestHeaders }), {
+        contentType: 'application/json',
+      });
+
+      res.setHeader('expo-protocol-version', 1);
+      res.setHeader('expo-sfv-version', 0);
+      res.setHeader('cache-control', 'private, max-age=0');
+      res.setHeader('content-type', `multipart/mixed; boundary=${form.getBoundary()}`);
+      return res.status(200).send(form.getBuffer());
+    }
+
+    // Fallback for Protocol v0
+    res.setHeader('expo-protocol-version', 0);
     res.setHeader('cache-control', 'private, max-age=0');
     res.setHeader('content-type', 'application/expo+json; charset=utf-8');
     res.json(manifest);
@@ -432,10 +522,14 @@ app.get('/api/assets', (req, res) => {
     const filePath = path.join(__dirname, 'updates', safeRuntime, path.normalize(asset));
 
     if (!fs.existsSync(filePath)) {
+      console.warn(`[OTA] Asset not found: ${filePath}`);
       return res.status(404).json({ error: 'Asset not found' });
     }
 
-    res.setHeader('content-type', 'application/javascript');
+    const ext = path.extname(filePath).toLowerCase();
+    res.setHeader('content-type', getMimeType(ext));
+    res.setHeader('access-control-allow-origin', '*');
+    res.setHeader('cache-control', 'public, max-age=31536000, immutable');
     res.sendFile(filePath);
   } catch (err) {
     console.error('[OTA] Error serving asset:', err.message);
