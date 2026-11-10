@@ -24,7 +24,7 @@ export const AuthScreen: React.FC = () => {
     isBiometricAvailable,
     isBiometricEnabled,
   } = useAuth();
-  const { theme } = useTheme();
+  const { theme, themeMode } = useTheme();
 
   const [mode, setMode] = useState<Mode>('login');
   const [name, setName] = useState('');
@@ -99,10 +99,10 @@ export const AuthScreen: React.FC = () => {
       >
         {/* ── Brand ── */}
         <View style={styles.brand}>
-          <View style={[styles.logoMark, { backgroundColor: theme.text }]}>
-            <WalletCards size={30} color={theme.card} strokeWidth={2.2} />
+          <View style={[styles.logoMark, { backgroundColor: themeMode === 'dark' ? '#111827' : '#0f172a' }]}>
+            <WalletCards size={34} color="#10b981" strokeWidth={2.2} />
           </View>
-          <Text style={[styles.brandOwner, { color: theme.muted }]}>{"Suwan's"}</Text>
+          <Text style={[styles.brandOwner, { color: theme.income }]}>{"Suwan's"}</Text>
           <Text style={[styles.brandName, { color: theme.text }]}>FundManager</Text>
           <Text style={[styles.brandTagline, { color: theme.muted }]}>
             {isLogin ? 'Sign in to your account' : 'Create your account'}
@@ -287,12 +287,19 @@ const styles = StyleSheet.create({
     marginBottom: 32,
   },
   logoMark: {
-    width: 58,
-    height: 58,
-    borderRadius: 18,
+    width: 66,
+    height: 66,
+    borderRadius: 22,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 12,
+    marginBottom: 14,
+    borderWidth: 1.5,
+    borderColor: 'rgba(16, 185, 129, 0.45)',
+    shadowColor: '#10b981',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.25,
+    shadowRadius: 14,
+    elevation: 8,
   },
   logoLetter: {
     fontSize: 20,
@@ -300,15 +307,15 @@ const styles = StyleSheet.create({
     letterSpacing: -0.5,
   },
   brandOwner: {
-    fontSize: 12.5,
-    fontWeight: '600',
-    letterSpacing: 0.3,
+    fontSize: 12,
+    fontWeight: '700',
+    letterSpacing: 1.5,
     textTransform: 'uppercase',
     marginBottom: 2,
   },
   brandName: {
-    fontSize: 24,
-    fontWeight: '700',
+    fontSize: 26,
+    fontWeight: '800',
     letterSpacing: -0.6,
     marginBottom: 4,
   },

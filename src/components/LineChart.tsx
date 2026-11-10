@@ -6,6 +6,7 @@ import {
   TouchableOpacity,
   LayoutChangeEvent,
   GestureResponderEvent,
+  Dimensions,
 } from 'react-native';
 import Svg, {
   Path,
@@ -80,7 +81,9 @@ export const LineChart: React.FC = () => {
   } = useTransactions();
   const { theme } = useTheme();
 
-  const [containerWidth, setContainerWidth] = useState(320);
+  const [containerWidth, setContainerWidth] = useState(() =>
+    Math.max(300, Math.floor(Dimensions.get('window').width - 32))
+  );
 
   // Drag visual state (drives re-render for the overlay rect)
   const [selBox, setSelBox] = useState<{ x1: number; x2: number } | null>(null);
@@ -162,8 +165,10 @@ export const LineChart: React.FC = () => {
   }, []);
 
   const onLayout = (e: LayoutChangeEvent) => {
-    const w = e.nativeEvent.layout.width;
-    if (w > 0) setContainerWidth(w);
+    const w = Math.round(e.nativeEvent.layout.width);
+    if (w > 0 && Math.abs(w - containerWidth) > 2) {
+      setContainerWidth(w);
+    }
   };
 
   // ── SVG paths ──────────────────────────────────────────────────────────────

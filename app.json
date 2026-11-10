@@ -5,7 +5,8 @@
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
-    "userInterfaceStyle": "automatic",
+    "userInterfaceStyle": "dark",
+    "backgroundColor": "#090d16",
     "runtimeVersion": {
       "policy": "appVersion"
     },
@@ -23,6 +24,7 @@
     "android": {
       "package": "com.suwan.fundmanager",
       "versionCode": 1,
+      "backgroundColor": "#090d16",
       "adaptiveIcon": {
         "backgroundColor": "#090d16",
         "foregroundImage": "./assets/android-icon-foreground.png",
@@ -53,7 +55,7 @@
           "image": "./assets/splash-icon.png",
           "backgroundColor": "#090d16",
           "resizeMode": "contain",
-          "imageWidth": 200
+          "imageWidth": 240
         }
       ]
     ]

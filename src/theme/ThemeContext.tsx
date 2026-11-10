@@ -8,6 +8,7 @@ const THEME_KEY = 'fm.theme';
 interface ThemeContextType {
   themeMode: ThemeMode;
   theme: ThemeColors;
+  isThemeLoaded: boolean;
   toggleTheme: () => void;
   setTheme: (mode: ThemeMode) => void;
 }
@@ -15,14 +16,20 @@ interface ThemeContextType {
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
 export const ThemeProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  const [themeMode, setThemeModeState] = useState<ThemeMode>('light');
+  const [themeMode, setThemeModeState] = useState<ThemeMode>('dark');
+  const [isThemeLoaded, setIsThemeLoaded] = useState(false);
 
   useEffect(() => {
-    AsyncStorage.getItem(THEME_KEY).then(saved => {
-      if (saved === 'dark' || saved === 'light') {
-        setThemeModeState(saved);
-      }
-    }).catch(() => {});
+    AsyncStorage.getItem(THEME_KEY)
+      .then(saved => {
+        if (saved === 'dark' || saved === 'light') {
+          setThemeModeState(saved);
+        }
+      })
+      .catch(() => {})
+      .finally(() => {
+        setIsThemeLoaded(true);
+      });
   }, []);
 
   const setTheme = useCallback((mode: ThemeMode) => {
@@ -37,7 +44,7 @@ export const ThemeProvider: React.FC<{ children: ReactNode }> = ({ children }) =
   const theme = themeMode === 'dark' ? darkTheme : lightTheme;
 
   return (
-    <ThemeContext.Provider value={{ themeMode, theme, toggleTheme, setTheme }}>
+    <ThemeContext.Provider value={{ themeMode, theme, isThemeLoaded, toggleTheme, setTheme }}>
       {children}
     </ThemeContext.Provider>
   );
