@@ -252,14 +252,14 @@ export const LineChart: React.FC = () => {
         </View>
       </View>
 
-      {/* Drag hint */}
-      <Text style={[styles.hint, { color: theme.muted }]}>
-        {isDragging
-          ? '↔ Release to apply filter'
-          : hasActiveFilter
-          ? `📅 ${fromDate}  →  ${toDate} · tap chart to clear`
-          : '↔ Drag on chart to filter transactions'}
-      </Text>
+      {/* Active filter status (only rendered when dragging or active) */}
+      {(isDragging || hasActiveFilter) && (
+        <Text style={[styles.hint, { color: theme.muted }]}>
+          {isDragging
+            ? 'Release to apply filter'
+            : `📅 ${fromDate}  →  ${toDate} · tap chart to clear`}
+        </Text>
+      )}
 
       {/* SVG chart — raw responder for drag filter */}
       <View

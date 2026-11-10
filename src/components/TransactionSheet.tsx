@@ -10,6 +10,7 @@ import {
   ScrollView,
   Platform,
   Alert,
+  KeyboardAvoidingView,
 } from 'react-native';
 import { useTransactions } from '../context/TransactionContext';
 import { useTheme } from '../theme/ThemeContext';
@@ -141,37 +142,42 @@ const TransactionSheetForm: React.FC<TransactionSheetProps> = ({
 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
-      <TouchableWithoutFeedback onPress={onClose}>
-        <View style={[styles.overlay, { backgroundColor: theme.overlay }]}>
-          <TouchableWithoutFeedback onPress={e => e.stopPropagation()}>
-            <View style={[styles.sheet, { backgroundColor: theme.card }]}>
-              {/* Handle */}
-              <View style={[styles.sheetHandle, { backgroundColor: theme.line }]} />
+      <KeyboardAvoidingView
+        style={styles.keyboardAvoid}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      >
+        <TouchableWithoutFeedback onPress={onClose}>
+          <View style={[styles.overlay, { backgroundColor: theme.overlay }]}>
+            <TouchableWithoutFeedback onPress={e => e.stopPropagation()}>
+              <View style={[styles.sheet, { backgroundColor: theme.card }]}>
+                {/* Handle */}
+                <View style={[styles.sheetHandle, { backgroundColor: theme.line }]} />
 
-              {/* Head */}
-              <View style={styles.sheetHead}>
-                <View style={styles.headLeft}>
-                  <Text style={[styles.sheetTitle, { color: theme.text }]}>
-                    {isEditing ? 'Edit Transaction' : 'New Transaction'}
-                  </Text>
-                  <Text style={[styles.sheetSubtitle, { color: theme.muted }]}>
-                    {isEditing ? 'Update amount, category, or note' : 'Record a new income or expense'}
-                  </Text>
+                {/* Head */}
+                <View style={styles.sheetHead}>
+                  <View style={styles.headLeft}>
+                    <Text style={[styles.sheetTitle, { color: theme.text }]}>
+                      {isEditing ? 'Edit Transaction' : 'New Transaction'}
+                    </Text>
+                    <Text style={[styles.sheetSubtitle, { color: theme.muted }]}>
+                      {isEditing ? 'Update amount, category, or note' : 'Record a new income or expense'}
+                    </Text>
+                  </View>
+                  <TouchableOpacity
+                    style={[styles.closeBtn, { backgroundColor: theme.card, borderColor: theme.line }]}
+                    onPress={onClose}
+                    activeOpacity={0.7}
+                  >
+                    <X size={16} color={theme.text} strokeWidth={2.2} />
+                  </TouchableOpacity>
                 </View>
-                <TouchableOpacity
-                  style={[styles.closeBtn, { backgroundColor: theme.card, borderColor: theme.line }]}
-                  onPress={onClose}
-                  activeOpacity={0.7}
-                >
-                  <X size={16} color={theme.text} strokeWidth={2.2} />
-                </TouchableOpacity>
-              </View>
 
-              <ScrollView
-                showsVerticalScrollIndicator={false}
-                keyboardShouldPersistTaps="handled"
-                contentContainerStyle={styles.formContent}
-              >
+                <ScrollView
+                  showsVerticalScrollIndicator={false}
+                  keyboardShouldPersistTaps="handled"
+                  keyboardDismissMode="on-drag"
+                  contentContainerStyle={styles.formContent}
+                >
                 {/* Type Toggle */}
                 <View style={[styles.typeToggle, { backgroundColor: theme.track }]}>
                   <TouchableOpacity
@@ -376,11 +382,16 @@ const TransactionSheetForm: React.FC<TransactionSheetProps> = ({
           </TouchableWithoutFeedback>
         </View>
       </TouchableWithoutFeedback>
-    </Modal>
-  );
+    </KeyboardAvoidingView>
+  </Modal>
+);
 };
 
 const styles = StyleSheet.create({
+  keyboardAvoid: {
+    flex: 1,
+    width: '100%',
+  },
   overlay: {
     flex: 1,
     justifyContent: 'flex-end',
@@ -433,7 +444,7 @@ const styles = StyleSheet.create({
   },
   formContent: {
     gap: 12,
-    paddingBottom: 12,
+    paddingBottom: 28,
   },
   typeToggle: {
     flexDirection: 'row',
