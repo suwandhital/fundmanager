@@ -76,8 +76,10 @@ async function secureDelete(key: string): Promise<void> {
 }
 
 // ─── Dynamic API Host Resolution ─────────────────────────────────────────────
-// Supports cloud production (Azure App Service) with zero private network lock-in
-export const PRODUCTION_API_URL = 'https://fundmanager-api-aphxbabxdvd2g5a0.uaenorth-01.azurewebsites.net';
+// Supports cloud production driven by EXPO_PUBLIC_API_URL environment variable
+export const PRODUCTION_API_URL =
+  process.env.EXPO_PUBLIC_API_URL?.replace(/\/$/, '') ||
+  'https://fundmanager-api-aphxbabxdvd2g5a0.uaenorth-01.azurewebsites.net';
 
 export function getApiBase(): string {
   // If explicitly overridden via environment variable (must be public cloud URL):

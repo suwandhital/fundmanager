@@ -17,9 +17,9 @@ export const uid = (): string => {
 };
 
 /**
- * Secret salt namespace for client-side password hashing
+ * Secret salt namespace for client-side password hashing (customizable via EXPO_PUBLIC_HASH_SALT)
  */
-const PASSWORD_SALT_PREFIX = 'suwan_fm_sec_v3_sha256_';
+const PASSWORD_SALT_PREFIX = process.env.EXPO_PUBLIC_HASH_SALT || 'suwan_fm_sec_v3_sha256_';
 
 /**
  * Military-grade SHA-256 cryptographic password hash with salting

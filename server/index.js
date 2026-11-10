@@ -1,3 +1,4 @@
+require('dotenv').config();
 const express = require('express');
 const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
@@ -140,15 +141,26 @@ function isValidEmail(email) {
   return /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(email.trim());
 }
 
-// Dummy hash for constant-time comparison against nonexistent users (timing attack defense)
-const DUMMY_HASH = '$2a$10$wT1dO7jYf8F2vB3kE1pQ6ex4K1vF5.bJ7qN3zY9wX1uM8pL5kO9q';
+// Compute dynamic dummy bcrypt hash at startup for constant-time comparisons without hardcoded secrets
+const DUMMY_HASH = bcrypt.hashSync(crypto.randomBytes(32).toString('hex'), 10);
 
-// ─── 5. Config ───────────────────────────────────────────────────────────────
-const MONGO_URI =
-  process.env.MONGO_URI ||
-  'mongodb+srv://cryptxerox_db_user:Helloworld%40123@cluster0.pbap0ap.mongodb.net/fundmanager?retryWrites=true&w=majority&appName=Cluster0';
-const JWT_SECRET = process.env.JWT_SECRET || 'fm_suwan_jwt_2024_secret';
-const PORT = process.env.PORT || 3001;
+// ─── 5. Configuration & Environment Security ─────────────────────────────────
+const MONGO_URI = process.env.MONGO_URI;
+const JWT_SECRET = process.env.JWT_SECRET;
+const PORT = parseInt(process.env.PORT, 10) || 3001;
+
+// Strict environment validation — refuse to run if critical secrets are missing
+if (!MONGO_URI) {
+  console.error('❌ [FATAL CONFIG ERROR] MONGO_URI environment variable is not defined.');
+  console.error('Please configure MONGO_URI in your environment or server/.env file.');
+  process.exit(1);
+}
+
+if (!JWT_SECRET) {
+  console.error('❌ [FATAL CONFIG ERROR] JWT_SECRET environment variable is not defined.');
+  console.error('Please configure JWT_SECRET in your environment or server/.env file.');
+  process.exit(1);
+}
 
 // ─── 6. Schemas & Models ─────────────────────────────────────────────────────
 const userSchema = new mongoose.Schema({
@@ -619,7 +631,7 @@ app.get('/api/manifest', (req, res) => {
       bundleKey = crypto.createHash('md5').update(bundleBuf).digest('hex');
     }
 
-    const baseUrl = `https://${req.get('host') || 'fundmanager-api-aphxbabxdvd2g5a0.uaenorth-01.azurewebsites.net'}`;
+    const baseUrl = process.env.PUBLIC_URL || (req.get('host') ? `https://${req.get('host')}` : '');
 
     // Map assets if present
     const assets = (platformMetadata.assets || []).map((asset) => {
