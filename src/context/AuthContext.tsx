@@ -349,7 +349,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       return { success: false, error: 'Biometric verification cancelled' };
     }
 
-    // Retrieve stored biometric user
+    // Retrieve stored biometric user & token
     const bioUserRaw = await secureGet(KEY_BIO_USER);
     if (!bioUserRaw) {
       return {
@@ -358,8 +358,21 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       };
     }
 
-    const bioUser: User = JSON.parse(bioUserRaw);
-    await secureSet(KEY_SESSION, JSON.stringify({ user: bioUser, token: 'bio_offline_token' }));
+    let bioUser: User;
+    let bioToken = 'local_token';
+    try {
+      const parsed = JSON.parse(bioUserRaw);
+      if (parsed.user) {
+        bioUser = parsed.user;
+        bioToken = parsed.token || 'local_token';
+      } else {
+        bioUser = parsed; // backwards compatibility
+      }
+    } catch {
+      return { success: false, error: 'Corrupt biometric record — please login with password' };
+    }
+
+    await secureSet(KEY_SESSION, JSON.stringify({ user: bioUser, token: bioToken }));
     setUser(bioUser);
     return { success: true };
   }, [isBiometricAvailable, isBiometricEnabled]);
@@ -382,7 +395,17 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
     if (!user) return { success: false, error: 'No active session' };
 
-    await secureSet(KEY_BIO_USER, JSON.stringify(user));
+    // Extract current token from active session so biometric restore preserves cloud JWT
+    const rawSession = await secureGet(KEY_SESSION);
+    let sessionToken = 'local_token';
+    if (rawSession) {
+      try {
+        const parsed = JSON.parse(rawSession);
+        if (parsed.token) sessionToken = parsed.token;
+      } catch {}
+    }
+
+    await secureSet(KEY_BIO_USER, JSON.stringify({ user, token: sessionToken }));
     await secureSet(KEY_BIO_ENABLED, 'true');
     setIsBiometricEnabled(true);
     setHasPromptedBioThisSession(true);

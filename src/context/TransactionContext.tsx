@@ -110,6 +110,9 @@ export const TransactionProvider: React.FC<{ children: ReactNode }> = ({ childre
           setIsLoading(false);
         }
 
+        // Demo user operates 100% locally on device
+        if (user.email === 'demo@fund.local') return;
+
         // Fetch from MongoDB Atlas in background and merge
         const queryUrl = `/api/transactions?userId=${encodeURIComponent(user.id)}&email=${encodeURIComponent(user.email)}`;
         apiFetchWithTimeout<{ transactions: Transaction[] }>(
@@ -425,6 +428,11 @@ export const TransactionProvider: React.FC<{ children: ReactNode }> = ({ childre
   const syncNow = useCallback(async () => {
     if (!user) {
       toast('Please login to sync');
+      return;
+    }
+
+    if (user.email === 'demo@fund.local') {
+      toast('Demo account runs locally. Register or login to sync with cloud.');
       return;
     }
 

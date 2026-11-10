@@ -9,20 +9,131 @@ const crypto = require('crypto');
 const FormData = require('form-data');
 
 const app = express();
-app.use(cors());
-app.use(express.json());
 
-// ─── Config ───────────────────────────────────────────────────────────────────
-// @ in password must be percent-encoded as %40 in connection string
+// ─── 1. Security Headers & Hardening ─────────────────────────────────────────
+app.disable('x-powered-by');
+
+app.use((req, res, next) => {
+  // Prevent MIME-sniffing
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  // Prevent clickjacking via iframes
+  res.setHeader('X-Frame-Options', 'DENY');
+  // Cross-site scripting filter
+  res.setHeader('X-XSS-Protection', '1; mode=block');
+  // Strict Referrer Policy
+  res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+  // Enforce HTTPS
+  res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains; preload');
+  // Restrict sensitive browser APIs
+  res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
+  // Content Security Policy
+  res.setHeader(
+    'Content-Security-Policy',
+    "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self' https:;"
+  );
+  next();
+});
+
+// ─── 2. CORS & Body Parser Limits (DoS Defense) ──────────────────────────────
+app.use(
+  cors({
+    origin: true,
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowedHeaders: [
+      'Content-Type',
+      'Authorization',
+      'expo-platform',
+      'expo-runtime-version',
+      'expo-protocol-version',
+      'expo-current-update-id',
+      'expo-sfv-version',
+    ],
+  })
+);
+
+// Limit JSON payload to 500KB to prevent memory exhaustion DoS attacks
+app.use(express.json({ limit: '500kb' }));
+
+// ─── 3. In-Memory Sliding-Window Rate Limiter ────────────────────────────────
+function createRateLimiter({ windowMs, maxRequests, message }) {
+  const hits = new Map();
+
+  // Periodic cleanup every 5 minutes to prevent memory leaks
+  setInterval(() => {
+    const now = Date.now();
+    for (const [ip, record] of hits.entries()) {
+      if (now - record.resetTime > windowMs) {
+        hits.delete(ip);
+      }
+    }
+  }, 300000).unref();
+
+  return (req, res, next) => {
+    const ip =
+      req.headers['x-forwarded-for']?.split(',')[0]?.trim() ||
+      req.socket.remoteAddress ||
+      'unknown';
+    const now = Date.now();
+    const record = hits.get(ip) || { count: 0, resetTime: now + windowMs };
+
+    if (now > record.resetTime) {
+      record.count = 1;
+      record.resetTime = now + windowMs;
+    } else {
+      record.count += 1;
+    }
+    hits.set(ip, record);
+
+    if (record.count > maxRequests) {
+      const retryAfter = Math.ceil((record.resetTime - now) / 1000);
+      res.setHeader('Retry-After', retryAfter);
+      return res.status(429).json({
+        error: message || 'Too many requests. Please try again later.',
+      });
+    }
+    next();
+  };
+}
+
+// Strict limiter for authentication endpoints (prevents brute-force)
+const authLimiter = createRateLimiter({
+  windowMs: 15 * 60 * 1000,
+  maxRequests: 15,
+  message: 'Too many authentication attempts. Please try again in 15 minutes.',
+});
+
+// General limiter for transactions and sync
+const apiLimiter = createRateLimiter({
+  windowMs: 60 * 1000,
+  maxRequests: 120,
+  message: 'API rate limit exceeded. Please slow down.',
+});
+
+// ─── 4. Input Sanitization & Defense ─────────────────────────────────────────
+function sanitizeString(val, maxLen = 200) {
+  if (typeof val !== 'string') return '';
+  return val.replace(/[\x00-\x1F\x7F]/g, '').trim().slice(0, maxLen);
+}
+
+function isValidEmail(email) {
+  if (typeof email !== 'string') return false;
+  return /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(email.trim());
+}
+
+// Dummy hash for constant-time comparison against nonexistent users (timing attack defense)
+const DUMMY_HASH = '$2a$10$wT1dO7jYf8F2vB3kE1pQ6ex4K1vF5.bJ7qN3zY9wX1uM8pL5kO9q';
+
+// ─── 5. Config ───────────────────────────────────────────────────────────────
 const MONGO_URI =
   process.env.MONGO_URI ||
   'mongodb+srv://cryptxerox_db_user:Helloworld%40123@cluster0.pbap0ap.mongodb.net/fundmanager?retryWrites=true&w=majority&appName=Cluster0';
 const JWT_SECRET = process.env.JWT_SECRET || 'fm_suwan_jwt_2024_secret';
 const PORT = process.env.PORT || 3001;
 
-// ─── Schema ───────────────────────────────────────────────────────────────────
+// ─── 6. Schemas & Models ─────────────────────────────────────────────────────
 const userSchema = new mongoose.Schema({
-  email: { type: String, required: true, unique: true, lowercase: true, trim: true },
+  email: { type: String, required: true, unique: true, lowercase: true, trim: true, index: true },
   name:  { type: String, required: true, trim: true },
   passwordHash: { type: String, required: true },
   createdAt: { type: Date, default: Date.now },
@@ -34,10 +145,10 @@ const transactionSchema = new mongoose.Schema({
   userId: { type: String, required: true, index: true },
   userEmail: { type: String, default: '', lowercase: true, trim: true, index: true },
   txId: { type: String, required: true },
-  type: { type: String, required: true },
+  type: { type: String, required: true, enum: ['income', 'expense'] },
   amount: { type: Number, required: true },
-  note: { type: String, default: '' },
-  category: { type: String, required: true },
+  note: { type: String, default: '', maxlength: 120 },
+  category: { type: String, required: true, maxlength: 40 },
   date: { type: String, required: true },
   createdAt: { type: Number, required: true },
   updatedAt: { type: Number, required: true },
@@ -48,7 +159,7 @@ transactionSchema.index({ userId: 1, txId: 1 });
 transactionSchema.index({ userEmail: 1, txId: 1 });
 const ServerTransaction = mongoose.model('Transaction', transactionSchema);
 
-// ─── MongoDB connect ───────────────────────────────────────────────────────────
+// ─── 7. MongoDB Connection ───────────────────────────────────────────────────
 mongoose
   .connect(MONGO_URI)
   .then(() => console.log('✅ Connected to MongoDB Atlas (cluster0.pbap0ap.mongodb.net/fundmanager)'))
@@ -57,9 +168,13 @@ mongoose
     process.exit(1);
   });
 
-// ─── Auth helpers ──────────────────────────────────────────────────────────────
+// ─── 8. Auth Helpers & Middleware ────────────────────────────────────────────
 const makeToken = (user) =>
-  jwt.sign({ id: user._id.toString(), email: user.email }, JWT_SECRET, { expiresIn: '60d' });
+  jwt.sign(
+    { id: user._id.toString(), email: user.email },
+    JWT_SECRET,
+    { expiresIn: '60d' }
+  );
 
 const sanitizeUser = (u) => ({
   id: u._id.toString(),
@@ -68,12 +183,31 @@ const sanitizeUser = (u) => ({
   createdAt: u.createdAt ? (u.createdAt.getTime ? u.createdAt.getTime() : new Date(u.createdAt).getTime()) : Date.now(),
 });
 
-// ─── Routes ───────────────────────────────────────────────────────────────────
+// Protect sensitive endpoints: require verified JWT
+const requireAuth = (req, res, next) => {
+  const authHeader = req.headers.authorization || '';
+  if (!authHeader.startsWith('Bearer ')) {
+    return res.status(401).json({ error: 'Authentication required. Missing Bearer token.' });
+  }
 
-// ─── Static & Public Assets ──────────────────────────────────────────────────
+  const token = authHeader.slice(7).trim();
+  if (!token || token === 'local_token' || token === 'bio_offline_token') {
+    return res.status(401).json({ error: 'Please log in with your email and password to connect to cloud.' });
+  }
+
+  try {
+    const payload = jwt.verify(token, JWT_SECRET);
+    req.user = payload; // { id, email }
+    next();
+  } catch {
+    return res.status(401).json({ error: 'Session expired or invalid token. Please log in again.' });
+  }
+};
+
+// ─── 9. Public Routes & Portal ───────────────────────────────────────────────
 app.use(express.static(path.join(__dirname, 'public')));
 
-// Root welcome / Portal landing page
+// Root welcome / Minimal landing page
 app.get('/', (req, res) => {
   if (req.headers.accept && req.headers.accept.includes('application/json') && !req.headers.accept.includes('text/html')) {
     return res.json({
@@ -82,6 +216,7 @@ app.get('/', (req, res) => {
       version: '1.0.0',
       runtime: `Node.js ${process.version}`,
       cloud: 'Azure App Service',
+      security: 'TLS 1.3 / JWT / Rate-Limited',
       time: new Date().toISOString(),
     });
   }
@@ -105,155 +240,150 @@ app.get(['/download/apk', '/download/FundManager.apk'], (req, res) => {
   if (fs.existsSync(localApk)) {
     return res.download(localApk, 'FundManager.apk');
   }
-  // Redirect to GitHub Release APK direct download
   res.redirect('https://github.com/suwandhital/fundmanager/releases/latest/download/FundManager.apk');
 });
 
 // Health check
-app.get('/api/health', (_, res) => {
+app.get('/api/health', (req, res) => {
   res.json({ ok: true, time: new Date().toISOString() });
 });
 
-// Register
-app.post('/api/auth/register', async (req, res) => {
+// Version & OTA metadata endpoint
+app.get('/api/version', (req, res) => {
+  res.json({
+    name: "Suwan's FundManager",
+    version: '1.0.0',
+    otaEnabled: true,
+    latestApkUrl: 'https://github.com/suwandhital/fundmanager/releases/latest',
+  });
+});
+
+// ─── 10. Authentication Routes ───────────────────────────────────────────────
+
+// Register (Rate-Limited, Strict Validation)
+app.post('/api/auth/register', authLimiter, async (req, res) => {
   try {
-    const { name, email, password } = req.body;
-    console.log(`[API] Register request for email: ${email}`);
+    const rawName = sanitizeString(req.body.name, 60);
+    const rawEmail = sanitizeString(req.body.email, 120).toLowerCase();
+    const rawPassword = typeof req.body.password === 'string' ? req.body.password : '';
 
-    if (!name || !email || !password)
+    if (!rawName || !rawEmail || !rawPassword) {
       return res.status(400).json({ error: 'Name, email, and password are required' });
-    if (password.length < 4)
-      return res.status(400).json({ error: 'Password must be at least 4 characters' });
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))
-      return res.status(400).json({ error: 'Invalid email format' });
-
-    const cleanEmail = email.toLowerCase().trim();
-    let user = await User.findOne({ email: cleanEmail });
-    if (user) {
-      // User already exists, check password or return error
-      const valid = await bcrypt.compare(password, user.passwordHash);
-      if (valid) {
-        console.log(`[API] User ${cleanEmail} already exists, logged in instead`);
-        return res.json({ user: sanitizeUser(user), token: makeToken(user) });
-      }
-      return res.status(409).json({ error: 'Email already registered with another password' });
+    }
+    if (rawPassword.length < 4 || rawPassword.length > 100) {
+      return res.status(400).json({ error: 'Password must be between 4 and 100 characters' });
+    }
+    if (!isValidEmail(rawEmail)) {
+      return res.status(400).json({ error: 'Invalid email address format' });
     }
 
-    const passwordHash = await bcrypt.hash(password, 10);
-    user = await User.create({ name: name.trim(), email: cleanEmail, passwordHash });
-    console.log(`[API] ✅ Created user in MongoDB Atlas: ${user._id} (${user.email})`);
+    let user = await User.findOne({ email: rawEmail });
+    if (user) {
+      const valid = await bcrypt.compare(rawPassword, user.passwordHash);
+      if (valid) {
+        return res.json({ user: sanitizeUser(user), token: makeToken(user) });
+      }
+      return res.status(409).json({ error: 'An account with this email already exists' });
+    }
+
+    const passwordHash = await bcrypt.hash(rawPassword, 10);
+    user = await User.create({ name: rawName, email: rawEmail, passwordHash });
+    console.log(`[API] ✅ Registered user: ${user._id} (${user.email})`);
 
     res.status(201).json({ user: sanitizeUser(user), token: makeToken(user) });
   } catch (err) {
     console.error('Register error:', err.message);
-    res.status(500).json({ error: 'Server error during registration: ' + err.message });
+    res.status(500).json({ error: 'Registration failed. Please try again.' });
   }
 });
 
-// Login
-app.post('/api/auth/login', async (req, res) => {
+// Login (Rate-Limited, Timing-Attack Resistant)
+app.post('/api/auth/login', authLimiter, async (req, res) => {
   try {
-    const { email, password } = req.body;
-    console.log(`[API] Login request for email: ${email}`);
+    const rawEmail = sanitizeString(req.body.email, 120).toLowerCase();
+    const rawPassword = typeof req.body.password === 'string' ? req.body.password : '';
 
-    if (!email || !password)
+    if (!rawEmail || !rawPassword) {
       return res.status(400).json({ error: 'Email and password are required' });
+    }
 
-    const cleanEmail = email.toLowerCase().trim();
-    const user = await User.findOne({ email: cleanEmail });
+    const user = await User.findOne({ email: rawEmail });
 
+    // Timing-attack defense: compare against dummy hash if user not found
     if (!user) {
-      console.log(`[API] Login failed: User not found for ${cleanEmail}`);
+      await bcrypt.compare(rawPassword, DUMMY_HASH);
       return res.status(401).json({ error: 'Account not found. Please register first.' });
     }
 
-    const valid = await bcrypt.compare(password, user.passwordHash);
+    const valid = await bcrypt.compare(rawPassword, user.passwordHash);
     if (!valid) {
-      console.log(`[API] Invalid password attempt for ${cleanEmail}`);
       return res.status(401).json({ error: 'Incorrect password' });
     }
 
-    console.log(`[API] ✅ User logged in from MongoDB Atlas: ${user._id} (${user.email})`);
+    console.log(`[API] ✅ Logged in user: ${user._id} (${user.email})`);
     res.json({ user: sanitizeUser(user), token: makeToken(user) });
   } catch (err) {
     console.error('Login error:', err.message);
-    res.status(500).json({ error: 'Server error during login: ' + err.message });
+    res.status(500).json({ error: 'Login failed. Please try again.' });
   }
 });
 
-// Update profile (accepts PUT or POST, authenticated via token or email)
+// Update Profile (Authenticated, Self-Scoped Only)
 const handleProfileUpdate = async (req, res) => {
   try {
-    const { name, email, newEmail, password, userId } = req.body;
-    console.log(`[API] Profile update request for user:`, { name, email, newEmail, userId });
-
-    let user = null;
-    const header = req.headers.authorization || '';
-    const token = header.startsWith('Bearer ') ? header.slice(7) : '';
-
-    if (token) {
-      try {
-        const payload = jwt.verify(token, JWT_SECRET);
-        user = await User.findById(payload.id);
-      } catch {}
-    }
-
-    if (!user && userId) {
-      user = await User.findById(userId).catch(() => null);
-    }
-
-    if (!user && email) {
-      user = await User.findOne({ email: email.toLowerCase().trim() });
-    }
-
+    const authUserId = req.user.id;
+    const user = await User.findById(authUserId);
     if (!user) {
-      return res.status(404).json({ error: 'User not found in MongoDB' });
+      return res.status(404).json({ error: 'User not found' });
     }
 
-    if (name && name.trim()) {
-      user.name = name.trim();
+    const rawName = sanitizeString(req.body.name, 60);
+    const rawNewEmail = sanitizeString(req.body.newEmail, 120).toLowerCase();
+    const rawPassword = typeof req.body.password === 'string' ? req.body.password : '';
+
+    if (rawName) {
+      user.name = rawName;
     }
-    if (newEmail && newEmail.trim() && newEmail.toLowerCase().trim() !== user.email) {
-      const cleanNew = newEmail.toLowerCase().trim();
-      const existing = await User.findOne({ email: cleanNew });
+    if (rawNewEmail && rawNewEmail !== user.email) {
+      if (!isValidEmail(rawNewEmail)) {
+        return res.status(400).json({ error: 'Invalid new email format' });
+      }
+      const existing = await User.findOne({ email: rawNewEmail });
       if (existing && existing._id.toString() !== user._id.toString()) {
         return res.status(409).json({ error: 'Email already in use by another account' });
       }
-      user.email = cleanNew;
+      user.email = rawNewEmail;
     }
-    if (password && password.length >= 4) {
-      user.passwordHash = await bcrypt.hash(password, 10);
+    if (rawPassword && rawPassword.length >= 4) {
+      user.passwordHash = await bcrypt.hash(rawPassword, 10);
     }
 
     await user.save();
-    console.log(`[API] ✅ Profile updated in MongoDB Atlas for: ${user._id} (${user.email})`);
+    console.log(`[API] ✅ Updated profile for user: ${user._id} (${user.email})`);
     res.json({ success: true, user: sanitizeUser(user), token: makeToken(user) });
   } catch (err) {
     console.error('Update profile error:', err.message);
-    res.status(500).json({ error: 'Server error updating profile: ' + err.message });
+    res.status(500).json({ error: 'Failed to update profile' });
   }
 };
 
-app.put('/api/auth/profile', handleProfileUpdate);
-app.post('/api/auth/profile', handleProfileUpdate);
+app.put('/api/auth/profile', apiLimiter, requireAuth, handleProfileUpdate);
+app.post('/api/auth/profile', apiLimiter, requireAuth, handleProfileUpdate);
 
-// Fetch user transactions from MongoDB Atlas (by userId, email, or both)
-app.get('/api/transactions', async (req, res) => {
+// ─── 11. Transaction Routes (JWT Protected & IDOR Defended) ─────────────────
+
+// Fetch user transactions (Strictly scoped to authenticated user)
+app.get('/api/transactions', apiLimiter, requireAuth, async (req, res) => {
   try {
-    const { userId, userEmail, email } = req.query;
-    const cleanEmail = (userEmail || email || '').toLowerCase().trim();
-    if (!userId && !cleanEmail) return res.status(400).json({ error: 'userId or email required' });
+    const authUserId = req.user.id;
+    const authEmail = req.user.email.toLowerCase().trim();
 
-    const query = {};
-    if (userId && cleanEmail) {
-      query.$or = [{ userId }, { userEmail: cleanEmail }];
-    } else if (userId) {
-      query.userId = userId;
-    } else {
-      query.userEmail = cleanEmail;
-    }
+    // Query is strictly bounded to the authenticated caller's identity
+    const query = {
+      $or: [{ userId: authUserId }, { userEmail: authEmail }],
+    };
 
-    const docs = await ServerTransaction.find(query).sort({ time: -1 }).lean();
+    const docs = await ServerTransaction.find(query).sort({ time: -1 }).limit(2000).lean();
     const transactions = docs.map(d => ({
       id: d.txId,
       type: d.type,
@@ -267,7 +397,6 @@ app.get('/api/transactions', async (req, res) => {
       synced: true,
     }));
 
-    console.log(`[API] Fetched ${transactions.length} transactions from MongoDB Atlas for ${userId || cleanEmail}`);
     res.json({ transactions });
   } catch (err) {
     console.error('Get transactions error:', err.message);
@@ -275,25 +404,22 @@ app.get('/api/transactions', async (req, res) => {
   }
 });
 
-// Delete transaction from MongoDB Atlas
-app.delete('/api/transactions/:txId', async (req, res) => {
+// Delete transaction (Strictly scoped to authenticated user)
+app.delete('/api/transactions/:txId', apiLimiter, requireAuth, async (req, res) => {
   try {
-    const { txId } = req.params;
-    const { userId, userEmail, email } = req.query;
-    if (!txId) return res.status(400).json({ error: 'txId required' });
+    const cleanTxId = sanitizeString(req.params.txId, 64);
+    if (!cleanTxId) return res.status(400).json({ error: 'Valid txId required' });
 
-    const cleanEmail = (userEmail || email || '').toLowerCase().trim();
-    const query = { txId };
-    if (userId && cleanEmail) {
-      query.$or = [{ userId }, { userEmail: cleanEmail }];
-    } else if (userId) {
-      query.userId = userId;
-    } else if (cleanEmail) {
-      query.userEmail = cleanEmail;
-    }
+    const authUserId = req.user.id;
+    const authEmail = req.user.email.toLowerCase().trim();
+
+    const query = {
+      txId: cleanTxId,
+      $or: [{ userId: authUserId }, { userEmail: authEmail }],
+    };
 
     const result = await ServerTransaction.deleteMany(query);
-    console.log(`[API] Deleted transaction ${txId} from MongoDB Atlas:`, result.deletedCount);
+    console.log(`[API] Deleted transaction ${cleanTxId} for user ${authEmail}: count=${result.deletedCount}`);
     res.json({ success: true, deletedCount: result.deletedCount });
   } catch (err) {
     console.error('Delete transaction error:', err.message);
@@ -301,76 +427,84 @@ app.delete('/api/transactions/:txId', async (req, res) => {
   }
 });
 
-// Sync transactions to MongoDB Atlas
-app.post('/api/sync', async (req, res) => {
+// Sync transactions (Strictly scoped & validated)
+app.post('/api/sync', apiLimiter, requireAuth, async (req, res) => {
   try {
-    const { userId, userEmail, email, transactions: incoming } = req.body;
-    const cleanEmail = (userEmail || email || '').toLowerCase().trim();
-    console.log(`[API] Sync request from userId: ${userId}, email: ${cleanEmail}, count: ${incoming?.length || 0}`);
+    const { transactions: incoming } = req.body;
+    const authUserId = req.user.id;
+    const authEmail = req.user.email.toLowerCase().trim();
 
-    if ((!userId && !cleanEmail) || !Array.isArray(incoming)) {
-      return res.status(400).json({ error: 'userId or email, and transactions array required' });
+    if (!Array.isArray(incoming)) {
+      return res.status(400).json({ error: 'Transactions array required' });
+    }
+
+    if (incoming.length > 500) {
+      return res.status(400).json({ error: 'Maximum 500 transactions allowed per sync batch' });
     }
 
     if (incoming.length === 0) {
       return res.json({ success: true, count: 0 });
     }
 
-    const bulkOps = incoming.map(t => {
-      const filter = { txId: t.id };
-      if (userId && cleanEmail) {
-        filter.$or = [{ userId }, { userEmail: cleanEmail }];
-      } else if (userId) {
-        filter.userId = userId;
-      } else {
-        filter.userEmail = cleanEmail;
+    // Build sanitized bulk operations strictly bounded to authenticated identity
+    const bulkOps = [];
+    for (const t of incoming) {
+      if (!t || typeof t !== 'object') continue;
+
+      const cleanId = sanitizeString(t.id, 64);
+      const cleanType = t.type === 'income' ? 'income' : 'expense';
+      const cleanAmount = Number(t.amount);
+      const cleanNote = sanitizeString(t.note || '', 120);
+      const cleanCat = sanitizeString(t.category || 'Other', 40);
+      const cleanDate = sanitizeString(t.date || '', 10);
+      const cleanCreated = Number(t.createdAt) || Date.now();
+      const cleanUpdated = Number(t.updatedAt) || Date.now();
+      const cleanTime = Number(t.time) || cleanCreated;
+
+      if (!cleanId || !isFinite(cleanAmount) || cleanAmount <= 0) {
+        continue;
       }
 
-      return {
+      bulkOps.push({
         updateOne: {
-          filter,
+          filter: {
+            txId: cleanId,
+            $or: [{ userId: authUserId }, { userEmail: authEmail }],
+          },
           update: {
             $set: {
-              userId: userId || t.userId || 'offline_user',
-              userEmail: cleanEmail,
-              txId: t.id,
-              type: t.type,
-              amount: Number(t.amount),
-              note: t.note || '',
-              category: t.category,
-              date: t.date,
-              createdAt: Number(t.createdAt) || Date.now(),
-              updatedAt: Number(t.updatedAt) || Date.now(),
-              time: Number(t.time) || Date.now(),
+              userId: authUserId,
+              userEmail: authEmail,
+              txId: cleanId,
+              type: cleanType,
+              amount: Math.round(cleanAmount * 100) / 100,
+              note: cleanNote,
+              category: cleanCat,
+              date: cleanDate,
+              createdAt: cleanCreated,
+              updatedAt: cleanUpdated,
+              time: cleanTime,
             },
           },
           upsert: true,
         },
-      };
-    });
+      });
+    }
+
+    if (bulkOps.length === 0) {
+      return res.status(400).json({ error: 'No valid transactions found in payload' });
+    }
 
     const result = await ServerTransaction.bulkWrite(bulkOps);
-    console.log(
-      `[API] ✅ Synced ${bulkOps.length} transactions to MongoDB Atlas for ${userId || cleanEmail} (upserted: ${result.upsertedCount}, modified: ${result.modifiedCount})`
-    );
+    console.log(`[API] ✅ Synced ${bulkOps.length} transactions for ${authEmail}`);
     res.json({ success: true, count: bulkOps.length });
   } catch (err) {
     console.error('Sync error:', err.message);
-    res.status(500).json({ error: 'Failed to sync to MongoDB Atlas: ' + err.message });
+    res.status(500).json({ error: 'Failed to synchronize transactions' });
   }
 });
 
-// Version & OTA metadata endpoint
-app.get('/api/version', (req, res) => {
-  res.json({
-    name: "Suwan's FundManager",
-    version: '1.0.0',
-    otaEnabled: true,
-    latestApkUrl: 'https://github.com/suwandhital/fundmanager/releases/latest',
-  });
-});
-
-// ─── Self-Hosted Expo Updates Server (Zero Expo Token OTA) ──────────────────
+// ─── 12. Self-Hosted Over-The-Air (OTA) Protocol v1 Server ───────────────────
 function getBase64URLEncoding(base64EncodedString) {
   return base64EncodedString.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 }
@@ -400,12 +534,13 @@ function getMimeType(ext) {
 
 app.get('/api/manifest', (req, res) => {
   try {
-    const platform = req.headers['expo-platform'] || req.query.platform || 'android';
-    const runtimeVersion = req.headers['expo-runtime-version'] || req.query['runtime-version'] || '1.0.0';
+    const platform = sanitizeString(req.headers['expo-platform'] || req.query.platform || 'android', 20);
+    const runtimeVersion = sanitizeString(req.headers['expo-runtime-version'] || req.query['runtime-version'] || '1.0.0', 20);
     const currentUpdateId = req.headers['expo-current-update-id'];
     const protocolVersion = parseInt(req.headers['expo-protocol-version'] || '1', 10);
 
-    const updateDir = path.join(__dirname, 'updates', runtimeVersion);
+    const safeRuntime = runtimeVersion.replace(/[^a-zA-Z0-9._-]/g, '') || '1.0.0';
+    const updateDir = path.join(__dirname, 'updates', safeRuntime);
     const metadataPath = path.join(updateDir, 'metadata.json');
 
     if (!fs.existsSync(metadataPath)) {
@@ -466,7 +601,7 @@ app.get('/api/manifest', (req, res) => {
 
     const baseUrl = `https://${req.get('host') || 'fundmanager-api-aphxbabxdvd2g5a0.uaenorth-01.azurewebsites.net'}`;
 
-    // Map assets if present in metadata
+    // Map assets if present
     const assets = (platformMetadata.assets || []).map((asset) => {
       const assetRelPath = asset.path;
       const assetFullPath = path.join(updateDir, assetRelPath);
@@ -482,20 +617,20 @@ app.get('/api/manifest', (req, res) => {
         hash: assetHash,
         fileExtension: asset.ext ? `.${asset.ext.replace(/^\./, '')}` : '',
         contentType: getMimeType(asset.ext),
-        url: `${baseUrl}/api/assets?asset=${encodeURIComponent(assetRelPath)}&runtimeVersion=${encodeURIComponent(runtimeVersion)}&platform=${encodeURIComponent(platform)}`,
+        url: `${baseUrl}/api/assets?asset=${encodeURIComponent(assetRelPath)}&runtimeVersion=${encodeURIComponent(safeRuntime)}&platform=${encodeURIComponent(platform)}`,
       };
     });
 
     const manifest = {
       id: updateId,
       createdAt: fileStat.mtime.toISOString(),
-      runtimeVersion: runtimeVersion,
+      runtimeVersion: safeRuntime,
       launchAsset: {
         key: bundleKey,
         hash: bundleHash,
         fileExtension: '.bundle',
         contentType: 'application/javascript',
-        url: `${baseUrl}/api/assets?asset=${encodeURIComponent(bundleRelPath)}&runtimeVersion=${encodeURIComponent(runtimeVersion)}&platform=${encodeURIComponent(platform)}`,
+        url: `${baseUrl}/api/assets?asset=${encodeURIComponent(bundleRelPath)}&runtimeVersion=${encodeURIComponent(safeRuntime)}&platform=${encodeURIComponent(platform)}`,
       },
       assets: assets,
       metadata: {},
@@ -539,10 +674,11 @@ app.get('/api/manifest', (req, res) => {
     res.json(manifest);
   } catch (err) {
     console.error('[OTA] Error serving manifest:', err.message);
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: 'Internal update error' });
   }
 });
 
+// Distribute OTA bundle & assets with Path Traversal Protection
 app.get('/api/assets', (req, res) => {
   try {
     const { asset, runtimeVersion } = req.query;
@@ -550,26 +686,43 @@ app.get('/api/assets', (req, res) => {
       return res.status(400).json({ error: 'asset query param required' });
     }
 
-    const safeRuntime = (typeof runtimeVersion === 'string' && runtimeVersion) || '1.0.0';
-    const filePath = path.join(__dirname, 'updates', safeRuntime, path.normalize(asset));
+    const safeRuntime = (typeof runtimeVersion === 'string' && runtimeVersion.replace(/[^a-zA-Z0-9._-]/g, '')) || '1.0.0';
+    const baseDir = path.resolve(__dirname, 'updates', safeRuntime);
+    const resolvedPath = path.resolve(baseDir, path.normalize(asset));
 
-    if (!fs.existsSync(filePath)) {
-      console.warn(`[OTA] Asset not found: ${filePath}`);
+    // Path traversal defense: ensure resolved path stays strictly within baseDir
+    if (!resolvedPath.startsWith(baseDir)) {
+      console.warn(`[Security] Blocked path traversal attempt: ${asset}`);
+      return res.status(403).json({ error: 'Access denied' });
+    }
+
+    if (!fs.existsSync(resolvedPath)) {
+      console.warn(`[OTA] Asset not found: ${resolvedPath}`);
       return res.status(404).json({ error: 'Asset not found' });
     }
 
-    const ext = path.extname(filePath).toLowerCase();
+    const ext = path.extname(resolvedPath).toLowerCase();
     res.setHeader('content-type', getMimeType(ext));
     res.setHeader('access-control-allow-origin', '*');
     res.setHeader('cache-control', 'public, max-age=31536000, immutable');
-    res.sendFile(filePath);
+    res.sendFile(resolvedPath);
   } catch (err) {
     console.error('[OTA] Error serving asset:', err.message);
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: 'Failed to serve asset' });
   }
 });
 
-// ─── Start ────────────────────────────────────────────────────────────────────
+// ─── 13. Global 404 & Error Handler ──────────────────────────────────────────
+app.use((_, res) => {
+  res.status(404).json({ error: 'Endpoint not found' });
+});
+
+app.use((err, req, res, next) => {
+  console.error('[Server Error]', err.stack || err.message);
+  res.status(500).json({ error: 'An unexpected internal error occurred' });
+});
+
+// ─── 14. Start ───────────────────────────────────────────────────────────────
 app.listen(PORT, '0.0.0.0', () => {
-  console.log(`🚀 FundManager API running at http://0.0.0.0:${PORT}`);
+  console.log(`🚀 FundManager API running securely at http://0.0.0.0:${PORT}`);
 });
