@@ -17,21 +17,6 @@
 
 ---
 
-## Table of Contents
-
-- [Overview](#overview)
-- [System Architecture](#system-architecture)
-- [Key Features](#key-features)
-- [Security Architecture](#security-architecture)
-- [Production Endpoints](#production-endpoints)
-- [Project Structure](#project-structure)
-- [Local Development](#local-development)
-- [Build & Deployment](#build--deployment)
-- [Troubleshooting & FAQ](#troubleshooting--faq)
-- [License](#license)
-
----
-
 ## Overview
 
 **Suwan's FundManager** is a high-performance personal money and wealth manager designed for mobile speed, visual clarity, and data independence. 
@@ -106,48 +91,6 @@ flowchart TD
 
 ---
 
-## Security Architecture
-
-The application implements defense-in-depth security across every tier:
-
-| Security Domain | Implementation | Protection Mechanism |
-| :--- | :--- | :--- |
-| **Insecure Direct Object Reference (IDOR)** | Verified JWT User Scoping | Every database query and sync upsert strictly enforces `req.user.id` and `req.user.email` from verified JWT payloads. Users cannot access or mutate another user's financial records. |
-| **Brute-Force & Credential Stuffing** | In-Memory Sliding-Window Limiter | Auth endpoints (`/api/auth/*`) are restricted to **15 attempts per 15 minutes** per IP. Returns `429 Too Many Requests` with standard `Retry-After` headers. |
-| **API Denial of Service (DoS)** | Request Limiting & Payload Clamping | General API calls are capped at **120 requests/minute**. Body parser is clamped to `500kb` (`express.json({ limit: '500kb' })`) and sync batches to **500 items**. |
-| **NoSQL & Parameter Injection** | Strict Type Sanitization | Custom sanitizer strips null bytes and control characters, coercing all inputs to strict primitives to neutralize Mongo query selectors (`$gt`, `$ne`). |
-| **Account Enumeration / Timing Attacks** | Constant-Time Hash Simulation | When a login attempt targets a nonexistent email, the server runs a dummy bcrypt comparison so response latency is identical for existing and non-existing accounts. |
-| **Biometric Keystore Persistence** | Hardware-Backed SecureStore | Biometric keys and session JWTs are encrypted on-device via iOS Keychain and Android Keystore (AES-256-GCM). |
-| **Path Traversal Defense** | Normalized Directory Sandboxing | OTA asset requests verify that `path.resolve` stays strictly within the designated update directory, blocking `../` traversal attempts. |
-| **HTTP Hardening** | Security Headers & Information Masking | Enforces `HSTS`, `CSP`, `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`, and strips `X-Powered-By`. |
-
----
-
-## Production Endpoints
-
-The backend API is deployed on **Microsoft Azure App Service** (Linux / Node.js 22):
-
-```
-Base URL: https://fundmanager-api-aphxbabxdvd2g5a0.uaenorth-01.azurewebsites.net
-```
-
-| Path | Method | Auth | Description |
-| :--- | :---: | :---: | :--- |
-| `/` | `GET` | Public | Minimal web portal with live latency monitor & direct APK link |
-| `/download/apk` | `GET` | Public | Direct standalone Android APK download |
-| `/api/health` | `GET` | Public | Service health verification and ISO timestamp |
-| `/api/version` | `GET` | Public | Application version metadata and release URLs |
-| `/api/auth/register` | `POST` | Public (Rate-Limited) | Register new user account into MongoDB Atlas |
-| `/api/auth/login` | `POST` | Public (Rate-Limited) | Authenticate user & issue 60-day JWT token |
-| `/api/auth/profile` | `PUT / POST` | Bearer JWT | Update user display name, email, or password |
-| `/api/transactions` | `GET` | Bearer JWT | Retrieve user transactions (scoped to authenticated identity) |
-| `/api/transactions/:txId` | `DELETE` | Bearer JWT | Delete single transaction belonging to authenticated user |
-| `/api/sync` | `POST` | Bearer JWT | Batch upsert and sync transactions (two-way merge) |
-| `/api/manifest` | `GET` | Public | Expo Updates Protocol v1 multipart manifest server |
-| `/api/assets` | `GET` | Public | Distribute Hermes bytecode bundles and vector assets |
-
----
-
 ## Project Structure
 
 ```
@@ -197,88 +140,6 @@ fundmanager/
 ├── eas.json                            # EAS build configuration
 └── package.json                        # Client dependencies
 ```
-
----
-
-## Local Development
-
-### Prerequisites
-- **Node.js**: `v20.x` or `v22.x`
-- **npm** or **bun**
-- **Java 17 (JDK)** (only if compiling local Android builds)
-
-### 1. Install Dependencies
-```bash
-# Install root client dependencies
-npm install
-
-# Install server dependencies
-cd server && npm install && cd ..
-```
-
-### 2. Run Mobile Client
-```bash
-# Start Expo Metro bundler
-npx expo start
-
-# Run on physical device / Android emulator
-npx expo run:android
-
-# Run in Web browser
-npx expo start --web
-```
-
-### 3. Run Backend Server Locally
-```bash
-cd server
-npm start
-# Server listens at http://localhost:3001
-```
-
-### 4. Code Quality & Diagnostics
-Run all verification suites before committing code:
-```bash
-# 1. TypeScript typecheck (0 errors)
-npx tsc --noEmit
-
-# 2. ESLint code quality (0 errors, 0 warnings)
-npx expo lint
-
-# 3. Expo SDK 58 dependency audit (20/20 checks passed)
-npx expo-doctor
-
-# 4. Backend syntax check
-node -c server/index.js
-```
-
----
-
-## Build & Deployment
-
-### 1. Publishing Over-The-Air (OTA) Updates
-To distribute an instant Over-The-Air update to all installed Android clients without generating a new APK:
-```bash
-EXPO_PUBLIC_API_URL=https://fundmanager-api-aphxbabxdvd2g5a0.uaenorth-01.azurewebsites.net \
-npx expo export -p android --output-dir server/updates/1.0.0
-```
-Commit and push to `main` — GitHub Actions will automatically deploy the updated bundle to Azure App Service:
-```bash
-git add .
-git commit -m "feat: publish updated OTA bundle"
-git push origin main
-```
-
-### 2. Building Standalone Android APK
-Standalone signed APK releases are compiled automatically via GitHub Actions (`.github/workflows/build-apk.yml`):
-```bash
-# Trigger an automated release build by pushing a version tag:
-git tag -a v1.0.3 -m "Release v1.0.3"
-git push origin v1.0.3
-```
-The workflow will:
-1. Prebuild the native Android project with Continuous Native Generation (CNG).
-2. Compile a release APK using Gradle.
-3. Publish `FundManager.apk` to **GitHub Releases** and upload to the Azure API server.
 
 ---
 
