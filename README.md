@@ -66,31 +66,6 @@ flowchart TD
     AuthMiddleware --> Transactions
 ```
 
----
-
-## Key Features
-
-### 1. Offline-First & Zero-Glitter Launch
-- **Instant Cold Start**: Local database queries resolve in `<10ms` using `@react-native-async-storage/async-storage`.
-- **Zero-Flicker Splash Coordination**: The native splash screen waits until theme tokens, authentication state, and cached transaction data are fully rasterized, preventing visual jumps or flashing zero-balances on startup.
-- **Dynamic Theming**: Full Dark (`#090d16`) and Light color token systems with automatic status bar synchronization.
-
-### 2. High-Precision Financial Analytics
-- **Dual Metric Balance Card**: Real-time balance computation in Nepali Rupees (`NRS `) using Indian numbering system formatting (`en-IN`), complete with period indicators (`Today`, `This week`, `This month`, `This year`).
-- **Interactive SVG Charting**: Renders dual area & line graphs across `Day` (24 hourly buckets), `Week` (Mon–Sun), `Month` (weekly intervals), and `Year` (12 months).
-- **Chart Scrubbing**: Touch and drag across chart segments to instantly filter transactions by date range.
-
-### 3. Smart Transaction Management
-- **Color-Shifting CRUD Modal**: Adapts handles, badges, and input accents dynamically (Emerald `#22c55e` for Income, Crimson `#ef4444` for Expense).
-- **Keyboard-Adaptive Layout**: Built with `KeyboardAvoidingView` so input sheets dynamically shift above soft keyboards.
-- **Quick Filters**: Instant text search across notes, categories, formatted amounts, and dates, with `In` / `Out` type chips.
-
-### 4. Self-Hosted Continuous Updates (OTA)
-- **Zero-Token Distribution**: Distributes compiled Hermes bytecode updates directly to client devices via a custom Expo Updates Protocol v1 implementation (`multipart/mixed; boundary=...`) running on Azure App Service.
-- **Background Checks**: Checks for updates on load and via the in-app Profile Settings screen.
-
----
-
 ## Project Structure
 
 ```
