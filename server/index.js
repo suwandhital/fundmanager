@@ -190,6 +190,41 @@ transactionSchema.index({ userId: 1, txId: 1 });
 transactionSchema.index({ userEmail: 1, txId: 1 });
 const ServerTransaction = mongoose.model('Transaction', transactionSchema);
 
+const loanPaymentSchema = new mongoose.Schema({
+  id: { type: String, required: true },
+  loanId: { type: String, default: '' },
+  date: { type: String, required: true },
+  amount: { type: Number, required: true },
+  type: { type: String, required: true, enum: ['interest', 'principal', 'both'] },
+  principalPaid: { type: Number, default: 0 },
+  interestPaid: { type: Number, default: 0 },
+  note: { type: String, default: '', maxlength: 120 },
+  createdAt: { type: Number, required: true },
+});
+
+const loanSchema = new mongoose.Schema({
+  userId: { type: String, required: true, index: true },
+  userEmail: { type: String, default: '', lowercase: true, trim: true, index: true },
+  loanId: { type: String, required: true },
+  type: { type: String, required: true, enum: ['to_pay', 'to_receive'] },
+  person: { type: String, required: true, maxlength: 60 },
+  phone: { type: String, default: '', maxlength: 30 },
+  principal: { type: Number, required: true },
+  startDate: { type: String, required: true },
+  dueDate: { type: String, default: '' },
+  interestRate: { type: Number, default: 0 },
+  interestType: { type: String, required: true, enum: ['none', 'monthly', 'yearly'] },
+  note: { type: String, default: '', maxlength: 200 },
+  payments: [loanPaymentSchema],
+  status: { type: String, default: 'active', enum: ['active', 'settled'] },
+  createdAt: { type: Number, required: true },
+  updatedAt: { type: Number, required: true },
+});
+
+loanSchema.index({ userId: 1, loanId: 1 });
+loanSchema.index({ userEmail: 1, loanId: 1 });
+const ServerLoan = mongoose.model('Loan', loanSchema);
+
 // ─── 7. MongoDB Connection ───────────────────────────────────────────────────
 mongoose
   .connect(MONGO_URI)
@@ -536,7 +571,177 @@ app.post('/api/sync', apiLimiter, requireAuth, async (req, res) => {
   }
 });
 
-// ─── 12. Self-Hosted Over-The-Air (OTA) Protocol v1 Server ───────────────────
+// ─── 12. Loan & Sapati Routes (JWT Protected & IDOR Defended) ─────────────────
+
+// Fetch user loans (Strictly scoped to authenticated user)
+app.get('/api/loans', apiLimiter, requireAuth, async (req, res) => {
+  try {
+    const authUserId = req.user.id;
+    const authEmail = req.user.email.toLowerCase().trim();
+
+    const query = {
+      $or: [{ userId: authUserId }, { userEmail: authEmail }],
+    };
+
+    const docs = await ServerLoan.find(query).sort({ createdAt: -1 }).limit(1000).lean();
+    const loans = docs.map(d => ({
+      id: d.loanId,
+      type: d.type,
+      person: d.person,
+      phone: d.phone || '',
+      principal: d.principal,
+      startDate: d.startDate,
+      dueDate: d.dueDate || '',
+      interestRate: d.interestRate || 0,
+      interestType: d.interestType || 'none',
+      note: d.note || '',
+      payments: (d.payments || []).map(p => ({
+        id: p.id,
+        loanId: d.loanId,
+        date: p.date,
+        amount: p.amount,
+        type: p.type,
+        principalPaid: p.principalPaid || 0,
+        interestPaid: p.interestPaid || 0,
+        note: p.note || '',
+        createdAt: p.createdAt,
+      })),
+      status: d.status || 'active',
+      createdAt: d.createdAt,
+      updatedAt: d.updatedAt,
+      synced: true,
+    }));
+
+    res.json({ loans });
+  } catch (err) {
+    console.error('Get loans error:', err.message);
+    res.status(500).json({ error: 'Failed to fetch loans' });
+  }
+});
+
+// Delete loan (Strictly scoped to authenticated user)
+app.delete('/api/loans/:loanId', apiLimiter, requireAuth, async (req, res) => {
+  try {
+    const cleanLoanId = sanitizeString(req.params.loanId, 64);
+    if (!cleanLoanId) return res.status(400).json({ error: 'Valid loanId required' });
+
+    const authUserId = req.user.id;
+    const authEmail = req.user.email.toLowerCase().trim();
+
+    const query = {
+      loanId: cleanLoanId,
+      $or: [{ userId: authUserId }, { userEmail: authEmail }],
+    };
+
+    const result = await ServerLoan.deleteMany(query);
+    console.log(`[API] Deleted loan ${cleanLoanId} for user ${authEmail}: count=${result.deletedCount}`);
+    res.json({ success: true, deletedCount: result.deletedCount });
+  } catch (err) {
+    console.error('Delete loan error:', err.message);
+    res.status(500).json({ error: 'Failed to delete loan' });
+  }
+});
+
+// Sync loans & repayments (Strictly scoped & validated)
+app.post('/api/loans/sync', apiLimiter, requireAuth, async (req, res) => {
+  try {
+    const { loans: incoming } = req.body;
+    const authUserId = req.user.id;
+    const authEmail = req.user.email.toLowerCase().trim();
+
+    if (!Array.isArray(incoming)) {
+      return res.status(400).json({ error: 'Loans array required' });
+    }
+
+    if (incoming.length > 200) {
+      return res.status(400).json({ error: 'Maximum 200 loans allowed per sync batch' });
+    }
+
+    if (incoming.length === 0) {
+      return res.json({ success: true, count: 0 });
+    }
+
+    const bulkOps = [];
+    for (const l of incoming) {
+      if (!l || typeof l !== 'object') continue;
+
+      const cleanId = sanitizeString(l.id, 64);
+      const cleanType = l.type === 'to_receive' ? 'to_receive' : 'to_pay';
+      const cleanPerson = sanitizeString(l.person, 60);
+      const cleanPhone = sanitizeString(l.phone || '', 30);
+      const cleanPrincipal = Number(l.principal);
+      const cleanStartDate = sanitizeString(l.startDate || '', 10);
+      const cleanDueDate = sanitizeString(l.dueDate || '', 10);
+      const cleanRate = Number(l.interestRate) || 0;
+      const cleanInterestType = l.interestType === 'monthly' || l.interestType === 'yearly' ? l.interestType : 'none';
+      const cleanNote = sanitizeString(l.note || '', 200);
+      const cleanStatus = l.status === 'settled' ? 'settled' : 'active';
+      const cleanCreated = Number(l.createdAt) || Date.now();
+      const cleanUpdated = Number(l.updatedAt) || Date.now();
+
+      if (!cleanId || !cleanPerson || !isFinite(cleanPrincipal) || cleanPrincipal <= 0) {
+        continue;
+      }
+
+      const sanitizedPayments = Array.isArray(l.payments)
+        ? l.payments.map(p => ({
+            id: sanitizeString(p.id, 64) || crypto.randomUUID(),
+            loanId: cleanId,
+            date: sanitizeString(p.date || '', 10),
+            amount: Math.round(Number(p.amount || 0) * 100) / 100,
+            type: p.type === 'interest' || p.type === 'principal' || p.type === 'both' ? p.type : 'principal',
+            principalPaid: Math.round(Number(p.principalPaid || 0) * 100) / 100,
+            interestPaid: Math.round(Number(p.interestPaid || 0) * 100) / 100,
+            note: sanitizeString(p.note || '', 120),
+            createdAt: Number(p.createdAt) || Date.now(),
+          }))
+        : [];
+
+      bulkOps.push({
+        updateOne: {
+          filter: {
+            loanId: cleanId,
+            $or: [{ userId: authUserId }, { userEmail: authEmail }],
+          },
+          update: {
+            $set: {
+              userId: authUserId,
+              userEmail: authEmail,
+              loanId: cleanId,
+              type: cleanType,
+              person: cleanPerson,
+              phone: cleanPhone,
+              principal: Math.round(cleanPrincipal * 100) / 100,
+              startDate: cleanStartDate,
+              dueDate: cleanDueDate,
+              interestRate: cleanRate,
+              interestType: cleanInterestType,
+              note: cleanNote,
+              payments: sanitizedPayments,
+              status: cleanStatus,
+              createdAt: cleanCreated,
+              updatedAt: cleanUpdated,
+            },
+          },
+          upsert: true,
+        },
+      });
+    }
+
+    if (bulkOps.length === 0) {
+      return res.status(400).json({ error: 'No valid loans found in payload' });
+    }
+
+    const result = await ServerLoan.bulkWrite(bulkOps);
+    console.log(`[API] ✅ Synced ${bulkOps.length} loans for ${authEmail}`);
+    res.json({ success: true, count: bulkOps.length });
+  } catch (err) {
+    console.error('Sync loans error:', err.message);
+    res.status(500).json({ error: 'Failed to synchronize loans' });
+  }
+});
+
+// ─── 13. Self-Hosted Over-The-Air (OTA) Protocol v1 Server ───────────────────
 function getBase64URLEncoding(base64EncodedString) {
   return base64EncodedString.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 }

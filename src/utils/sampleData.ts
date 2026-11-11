@@ -120,3 +120,150 @@ export const migrateTx = (t: any): Transaction => {
   };
 };
 
+export const seedDemoLoans = (): import('../types').Loan[] => {
+  const now = new Date();
+  const d30 = new Date(now.getTime() - 30 * 86400000);
+  const d60 = new Date(now.getTime() - 60 * 86400000);
+  const d15 = new Date(now.getTime() - 15 * 86400000);
+
+  return [
+    {
+      id: uid(),
+      type: 'to_pay',
+      person: 'Nabil Bank (Personal Loan)',
+      phone: '01-4422333',
+      principal: 200000,
+      startDate: ymd(d60),
+      dueDate: ymd(new Date(now.getTime() + 300 * 86400000)),
+      interestRate: 11.5,
+      interestType: 'yearly',
+      note: 'Home renovation loan installment',
+      status: 'active',
+      createdAt: d60.getTime(),
+      updatedAt: d15.getTime(),
+      synced: true,
+      payments: [
+        {
+          id: uid(),
+          loanId: '',
+          date: ymd(d30),
+          amount: 25000,
+          type: 'both',
+          principalPaid: 21160,
+          interestPaid: 3840,
+          note: '1st Month EMI paid via ConnectIPS',
+          createdAt: d30.getTime(),
+        },
+      ],
+    },
+    {
+      id: uid(),
+      type: 'to_pay',
+      person: 'Ramesh Sharma (Friend Sapati)',
+      phone: '9841234567',
+      principal: 40000,
+      startDate: ymd(d30),
+      dueDate: ymd(new Date(now.getTime() + 30 * 86400000)),
+      interestRate: 0,
+      interestType: 'none',
+      note: 'Emergency sapati for hospital bill',
+      status: 'active',
+      createdAt: d30.getTime(),
+      updatedAt: d15.getTime(),
+      synced: true,
+      payments: [
+        {
+          id: uid(),
+          loanId: '',
+          date: ymd(d15),
+          amount: 15000,
+          type: 'principal',
+          principalPaid: 15000,
+          interestPaid: 0,
+          note: 'Cash returned at office',
+          createdAt: d15.getTime(),
+        },
+      ],
+    },
+    {
+      id: uid(),
+      type: 'to_receive',
+      person: 'Bikash Adhikari (Colleague)',
+      phone: '9851098765',
+      principal: 60000,
+      startDate: ymd(d60),
+      dueDate: ymd(new Date(now.getTime() + 60 * 86400000)),
+      interestRate: 1.5,
+      interestType: 'monthly',
+      note: 'Laptop purchase support',
+      status: 'active',
+      createdAt: d60.getTime(),
+      updatedAt: d30.getTime(),
+      synced: true,
+      payments: [
+        {
+          id: uid(),
+          loanId: '',
+          date: ymd(d30),
+          amount: 900,
+          type: 'interest',
+          principalPaid: 0,
+          interestPaid: 900,
+          note: 'Month 1 interest received via eSewa',
+          createdAt: d30.getTime(),
+        },
+      ],
+    },
+    {
+      id: uid(),
+      type: 'to_receive',
+      person: 'Sunil Thapa (Neighbor)',
+      phone: '9801234890',
+      principal: 15000,
+      startDate: ymd(d15),
+      interestRate: 0,
+      interestType: 'none',
+      note: 'Short term sapati for dashain',
+      status: 'active',
+      createdAt: d15.getTime(),
+      updatedAt: d15.getTime(),
+      synced: true,
+      payments: [],
+    },
+  ];
+};
+
+export const migrateLoan = (l: any): import('../types').Loan => {
+  const payments = Array.isArray(l.payments)
+    ? l.payments.map((p: any) => ({
+        id: p.id || uid(),
+        loanId: l.id || '',
+        date: p.date || ymd(new Date()),
+        amount: Math.max(0, Number(p.amount) || 0),
+        type: p.type === 'interest' || p.type === 'principal' || p.type === 'both' ? p.type : 'principal',
+        principalPaid: Math.max(0, Number(p.principalPaid) || 0),
+        interestPaid: Math.max(0, Number(p.interestPaid) || 0),
+        note: String(p.note || ''),
+        createdAt: Number(p.createdAt) || Date.now(),
+      }))
+    : [];
+
+  return {
+    id: l.id || uid(),
+    type: l.type === 'to_receive' ? 'to_receive' : 'to_pay',
+    person: String(l.person || 'Unknown Contact'),
+    phone: l.phone ? String(l.phone) : undefined,
+    principal: Math.max(0, Number(l.principal) || 0),
+    startDate: l.startDate || ymd(new Date()),
+    dueDate: l.dueDate || undefined,
+    interestRate: Math.max(0, Number(l.interestRate) || 0),
+    interestType: l.interestType === 'monthly' || l.interestType === 'yearly' ? l.interestType : 'none',
+    note: String(l.note || ''),
+    payments,
+    status: l.status === 'settled' ? 'settled' : 'active',
+    createdAt: Number(l.createdAt) || Date.now(),
+    updatedAt: Number(l.updatedAt) || Date.now(),
+    synced: l.synced !== false,
+  };
+};
+

@@ -6,6 +6,7 @@ import { ThemeProvider, useTheme } from './src/theme/ThemeContext';
 import { ToastProvider } from './src/context/ToastContext';
 import { AuthProvider, useAuth } from './src/context/AuthContext';
 import { TransactionProvider, useTransactions } from './src/context/TransactionContext';
+import { LoanProvider } from './src/context/LoanContext';
 import { MobileFrame } from './src/components/layout/MobileFrame';
 import { AuthScreen } from './src/screens/AuthScreen';
 import { MainScreen } from './src/screens/MainScreen';
@@ -51,7 +52,9 @@ export default function App() {
         <ToastProvider>
           <AuthProvider>
             <TransactionProvider>
-              <RootApp />
+              <LoanProvider>
+                <RootApp />
+              </LoanProvider>
             </TransactionProvider>
           </AuthProvider>
         </ToastProvider>

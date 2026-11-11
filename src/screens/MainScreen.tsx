@@ -17,8 +17,14 @@ import { LineChart } from '../components/LineChart';
 import { FilterBar } from '../components/FilterBar';
 import { TransactionList } from '../components/TransactionList';
 import { TransactionSheet } from '../components/TransactionSheet';
-import { Transaction } from '../types';
-import { Plus, Fingerprint } from 'lucide-react-native';
+import { LoanSummaryCard } from '../components/LoanSummaryCard';
+import { LoanList } from '../components/LoanList';
+import { LoanSheet } from '../components/LoanSheet';
+import { LoanDetailSheet } from '../components/LoanDetailSheet';
+import { Transaction, Loan, LoanType } from '../types';
+import { Plus, Fingerprint, CreditCard, ArrowDownLeft, ArrowUpRight } from 'lucide-react-native';
+
+type ActiveTab = 'transactions' | 'to_pay' | 'to_receive';
 
 export const MainScreen: React.FC = () => {
   const { theme } = useTheme();
@@ -27,17 +33,45 @@ export const MainScreen: React.FC = () => {
   const { toast } = useToast();
   const insets = useSafeAreaInsets();
 
+  const [activeTab, setActiveTab] = useState<ActiveTab>('transactions');
+
+  // Transaction Sheets State
   const [txSheetVisible, setTxSheetVisible] = useState(false);
   const [selectedTx, setSelectedTx] = useState<Transaction | null>(null);
 
+  // Loan Sheets State
+  const [loanSheetVisible, setLoanSheetVisible] = useState(false);
+  const [loanDetailVisible, setLoanDetailVisible] = useState(false);
+  const [selectedLoan, setSelectedLoan] = useState<Loan | null>(null);
+  const [loanToEdit, setLoanToEdit] = useState<Loan | null>(null);
+  const [loanSheetDefaultType, setLoanSheetDefaultType] = useState<LoanType>('to_pay');
+
+  // Open FAB depending on active tab
   const handleOpenAdd = () => {
-    setSelectedTx(null);
-    setTxSheetVisible(true);
+    if (activeTab === 'transactions') {
+      setSelectedTx(null);
+      setTxSheetVisible(true);
+    } else {
+      setLoanToEdit(null);
+      setLoanSheetDefaultType(activeTab);
+      setLoanSheetVisible(true);
+    }
   };
 
   const handleSelectTx = (tx: Transaction) => {
     setSelectedTx(tx);
     setTxSheetVisible(true);
+  };
+
+  const handleSelectLoan = (loan: Loan) => {
+    setSelectedLoan(loan);
+    setLoanDetailVisible(true);
+  };
+
+  const handleEditLoan = (loan: Loan) => {
+    setLoanToEdit(loan);
+    setLoanSheetDefaultType(loan.type);
+    setLoanSheetVisible(true);
   };
 
   const handleEnableBio = async () => {
@@ -61,27 +95,148 @@ export const MainScreen: React.FC = () => {
         <BalanceCard />
       </View>
 
-      {/* Overview Graph */}
-      <View style={styles.chartSection}>
-        <LineChart />
-      </View>
+      {/* Overview Graph: visible on Transactions tab */}
+      {activeTab === 'transactions' && (
+        <View style={styles.chartSection}>
+          <LineChart />
+        </View>
+      )}
 
-      {/* ── Transaction section: fixed within page, extends to end ── */}
+      {/* ── Dynamic Section: switched between Transactions, To Pay & To Receive ── */}
       <View
         style={[
-          styles.txSection,
+          styles.contentSection,
           { paddingBottom: Math.max(insets.bottom, 10) },
         ]}
       >
-        {/* Little space above search bar */}
-        <View style={styles.filterSection}>
-          <FilterBar />
+        {/* ── Segmented Navigation Row (Switching only the lower section) ── */}
+        <View style={[styles.tabBar, { backgroundColor: theme.fieldBg, borderColor: theme.line }]}>
+          <TouchableOpacity
+            style={[
+              styles.tabBtn,
+              activeTab === 'transactions' && [
+                styles.tabBtnActive,
+                { backgroundColor: theme.text },
+              ],
+            ]}
+            onPress={() => setActiveTab('transactions')}
+            activeOpacity={0.8}
+          >
+            <CreditCard
+              size={13}
+              color={activeTab === 'transactions' ? theme.card : theme.muted}
+              strokeWidth={2.4}
+              style={{ marginRight: 5 }}
+            />
+            <Text
+              style={[
+                styles.tabBtnText,
+                {
+                  color: activeTab === 'transactions' ? theme.card : theme.muted,
+                  fontWeight: activeTab === 'transactions' ? '700' : '600',
+                },
+              ]}
+            >
+              Transactions
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[
+              styles.tabBtn,
+              activeTab === 'to_pay' && [
+                styles.tabBtnActive,
+                { backgroundColor: theme.text },
+              ],
+            ]}
+            onPress={() => setActiveTab('to_pay')}
+            activeOpacity={0.8}
+          >
+            <ArrowDownLeft
+              size={13}
+              color={activeTab === 'to_pay' ? '#f87171' : theme.muted}
+              strokeWidth={2.5}
+              style={{ marginRight: 4 }}
+            />
+            <Text
+              style={[
+                styles.tabBtnText,
+                {
+                  color: activeTab === 'to_pay' ? theme.card : theme.muted,
+                  fontWeight: activeTab === 'to_pay' ? '700' : '600',
+                },
+              ]}
+            >
+              To Pay
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[
+              styles.tabBtn,
+              activeTab === 'to_receive' && [
+                styles.tabBtnActive,
+                { backgroundColor: theme.text },
+              ],
+            ]}
+            onPress={() => setActiveTab('to_receive')}
+            activeOpacity={0.8}
+          >
+            <ArrowUpRight
+              size={13}
+              color={activeTab === 'to_receive' ? '#4ade80' : theme.muted}
+              strokeWidth={2.5}
+              style={{ marginRight: 4 }}
+            />
+            <Text
+              style={[
+                styles.tabBtnText,
+                {
+                  color: activeTab === 'to_receive' ? theme.card : theme.muted,
+                  fontWeight: activeTab === 'to_receive' ? '700' : '600',
+                },
+              ]}
+            >
+              To Receive
+            </Text>
+          </TouchableOpacity>
         </View>
 
-        {/* Transaction list inside visible card extending to end of page */}
-        <View style={styles.listContainer}>
-          <TransactionList onSelectTransaction={handleSelectTx} />
-        </View>
+        {/* Tab View 1: Transactions (Default view) */}
+        {activeTab === 'transactions' && (
+          <View style={styles.viewContainer}>
+            <View style={styles.filterSection}>
+              <FilterBar />
+            </View>
+            <View style={styles.listContainer}>
+              <TransactionList onSelectTransaction={handleSelectTx} />
+            </View>
+          </View>
+        )}
+
+        {/* Tab View 2: To Pay (Debts, Loans taken & Sapati to pay) */}
+        {activeTab === 'to_pay' && (
+          <View style={styles.viewContainer}>
+            <View style={styles.summaryWrap}>
+              <LoanSummaryCard type="to_pay" />
+            </View>
+            <View style={styles.listContainer}>
+              <LoanList type="to_pay" onSelectLoan={handleSelectLoan} />
+            </View>
+          </View>
+        )}
+
+        {/* Tab View 3: To Receive (Lent money & Sapati given) */}
+        {activeTab === 'to_receive' && (
+          <View style={styles.viewContainer}>
+            <View style={styles.summaryWrap}>
+              <LoanSummaryCard type="to_receive" />
+            </View>
+            <View style={styles.listContainer}>
+              <LoanList type="to_receive" onSelectLoan={handleSelectLoan} />
+            </View>
+          </View>
+        )}
       </View>
 
       {/* Floating Action Button (FAB) */}
@@ -89,18 +244,23 @@ export const MainScreen: React.FC = () => {
         style={[
           styles.fab,
           {
-            backgroundColor: theme.text,
+            backgroundColor:
+              activeTab === 'to_pay'
+                ? theme.expense
+                : activeTab === 'to_receive'
+                ? theme.income
+                : theme.text,
             bottom: Math.max(insets.bottom, 10) + 16,
           },
         ]}
         onPress={handleOpenAdd}
         activeOpacity={0.88}
       >
-        <Plus size={22} color={theme.card} strokeWidth={2.4} />
+        <Plus size={22} color={activeTab === 'transactions' ? theme.card : '#ffffff'} strokeWidth={2.4} />
       </TouchableOpacity>
 
       {/* Tap anywhere backdrop to clear chart date filter */}
-      {hasFilter && (
+      {hasFilter && activeTab === 'transactions' && (
         <TouchableOpacity
           style={styles.backdropClear}
           onPress={clearDates}
@@ -117,6 +277,28 @@ export const MainScreen: React.FC = () => {
           setSelectedTx(null);
         }}
         transactionToEdit={selectedTx}
+      />
+
+      {/* Loan Create / Edit Sheet */}
+      <LoanSheet
+        visible={loanSheetVisible}
+        onClose={() => {
+          setLoanSheetVisible(false);
+          setLoanToEdit(null);
+        }}
+        loanToEdit={loanToEdit}
+        defaultType={loanSheetDefaultType}
+      />
+
+      {/* Loan Detail & Child Repayments Sheet */}
+      <LoanDetailSheet
+        visible={loanDetailVisible}
+        onClose={() => {
+          setLoanDetailVisible(false);
+          setSelectedLoan(null);
+        }}
+        loan={selectedLoan}
+        onEditLoan={handleEditLoan}
       />
 
       {/* Biometric setup prompt modal — asks user on each login until activated */}
@@ -175,21 +357,54 @@ const styles = StyleSheet.create({
   },
   balanceSection: {
     paddingHorizontal: 14,
-    marginTop: 8,
-    marginBottom: 8,
+    marginTop: 6,
+    marginBottom: 6,
   },
   chartSection: {
     paddingHorizontal: 14,
-    marginBottom: 8,
+    marginBottom: 6,
   },
-  txSection: {
+  contentSection: {
     flex: 1,
     minHeight: 0,
     paddingHorizontal: 14,
   },
+  tabBar: {
+    flexDirection: 'row',
+    borderRadius: 14,
+    padding: 3,
+    borderWidth: 1,
+    marginBottom: 6,
+  },
+  tabBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 7,
+    borderRadius: 11,
+  },
+  tabBtnActive: {
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.12,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  tabBtnText: {
+    fontSize: 12,
+  },
+  viewContainer: {
+    flex: 1,
+    minHeight: 0,
+  },
   filterSection: {
-    marginTop: 18,
+    marginTop: 4,
     marginBottom: 2,
+  },
+  summaryWrap: {
+    marginTop: 4,
+    marginBottom: 4,
   },
   listContainer: {
     flex: 1,
@@ -198,29 +413,25 @@ const styles = StyleSheet.create({
   fab: {
     position: 'absolute',
     right: 18,
-    width: 52,
-    height: 52,
-    borderRadius: 16,
+    width: 48,
+    height: 48,
+    borderRadius: 24,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#0f172a',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.3,
-    shadowRadius: 14,
-    elevation: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.28,
+    shadowRadius: 8,
+    elevation: 6,
+    zIndex: 99,
   },
   backdropClear: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    zIndex: -1,
+    ...StyleSheet.absoluteFill,
+    zIndex: 10,
   },
-  // Biometric prompt modal
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
+    backgroundColor: 'rgba(0,0,0,0.6)',
     alignItems: 'center',
     justifyContent: 'center',
     padding: 24,
@@ -229,43 +440,37 @@ const styles = StyleSheet.create({
     width: '100%',
     maxWidth: 340,
     borderRadius: 20,
-    borderWidth: 1,
     padding: 24,
     alignItems: 'center',
-    gap: 10,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.2,
-    shadowRadius: 20,
-    elevation: 10,
+    borderWidth: 1,
   },
   modalIcon: {
     width: 60,
     height: 60,
-    borderRadius: 20,
+    borderRadius: 30,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 4,
+    marginBottom: 16,
   },
   modalTitle: {
-    fontSize: 17.5,
+    fontSize: 18,
     fontWeight: '700',
-    letterSpacing: -0.3,
+    marginBottom: 8,
     textAlign: 'center',
   },
   modalBody: {
-    fontSize: 13.5,
+    fontSize: 13,
+    lineHeight: 18,
     textAlign: 'center',
-    lineHeight: 20,
-    marginBottom: 6,
+    marginBottom: 20,
   },
   modalBtn: {
     width: '100%',
-    borderRadius: 12,
-    paddingVertical: 13,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
+    paddingVertical: 12,
+    borderRadius: 12,
     gap: 8,
   },
   modalBtnText: {

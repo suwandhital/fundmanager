@@ -43,4 +43,50 @@ export interface BackupData {
   exportedAt: string;
   user: string;
   transactions: Transaction[];
+  loans?: Loan[];
+}
+
+export type LoanType = 'to_pay' | 'to_receive';
+export type InterestType = 'none' | 'monthly' | 'yearly';
+export type PaymentType = 'interest' | 'principal' | 'both';
+
+export interface LoanPayment {
+  id: string;
+  loanId: string;
+  date: string; // YYYY-MM-DD
+  amount: number;
+  type: PaymentType;
+  principalPaid: number;
+  interestPaid: number;
+  note?: string;
+  createdAt: number;
+}
+
+export interface Loan {
+  id: string;
+  type: LoanType; // 'to_pay' = borrowed (loan taken/sapati), 'to_receive' = lent (loan given)
+  person: string;
+  phone?: string;
+  principal: number;
+  startDate: string; // YYYY-MM-DD
+  dueDate?: string; // YYYY-MM-DD
+  interestRate: number; // number, e.g. 1.5 or 12, 0 for none
+  interestType: InterestType; // 'none' | 'monthly' | 'yearly'
+  note?: string;
+  payments: LoanPayment[];
+  status: 'active' | 'settled';
+  createdAt: number;
+  updatedAt: number;
+  synced?: boolean;
+}
+
+export interface LoanCalculations {
+  remainingPrincipal: number;
+  totalAccruedInterest: number;
+  totalInterestPaid: number;
+  totalPrincipalPaid: number;
+  unpaidInterest: number;
+  totalOutstanding: number;
+  elapsedDays: number;
+  elapsedMonths: number;
 }
