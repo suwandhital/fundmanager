@@ -34,6 +34,7 @@ jobs:
           EXPO_PUBLIC_API_URL: https://fundmanager-api-aphxbabxdvd2g5a0.uaenorth-01.azurewebsites.net
         run: |
           npx expo export -p android --output-dir server/updates/1.0.0
+          node -e "const fs = require('fs'); const p = 'server/updates/1.0.0/metadata.json'; if (fs.existsSync(p)) { const m = JSON.parse(fs.readFileSync(p, 'utf8')); m.createdAt = new Date().toISOString(); fs.writeFileSync(p, JSON.stringify(m)); }"
 
       - name: Install server production dependencies
         working-directory: server

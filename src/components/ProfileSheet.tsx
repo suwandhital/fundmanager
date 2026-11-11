@@ -77,8 +77,8 @@ const ProfileSheetForm: React.FC<ProfileSheetProps> = ({ visible, onClose }) => 
     setUpdateStatus('Checking for updates...');
     try {
       if (!Updates.isEnabled) {
-        setUpdateStatus('OTA active in release APK build');
-        toast('Updates active in standalone release build');
+        setUpdateStatus('Running in Dev / Expo Go (OTA inactive)');
+        toast('Updates active in standalone release APK build');
         return;
       }
       const update = await Updates.checkForUpdateAsync();
@@ -90,13 +90,20 @@ const ProfileSheetForm: React.FC<ProfileSheetProps> = ({ visible, onClose }) => 
         toast('Update ready! Reloading...');
         await Updates.reloadAsync();
       } else {
-        setUpdateStatus('App is up to date ✓');
-        toast('App is up to date ✓');
+        const reason = (update as any)?.reason;
+        if (reason === 'updateRejectedBySelectionPolicy') {
+          setUpdateStatus('App is on latest build ✓');
+          toast('Running newest version ✓');
+        } else {
+          setUpdateStatus('App is up to date ✓');
+          toast('App is up to date ✓');
+        }
       }
     } catch (err: any) {
       console.warn('[Updates] Check update note:', err?.message);
-      setUpdateStatus('App is up to date ✓');
-      toast('App is up to date ✓');
+      const errMsg = err?.message || 'Check failed';
+      setUpdateStatus(`Check note: ${errMsg.slice(0, 35)}`);
+      toast(`Update check note: ${errMsg.slice(0, 45)}`);
     } finally {
       setIsCheckingUpdate(false);
     }
@@ -315,7 +322,7 @@ const ProfileSheetForm: React.FC<ProfileSheetProps> = ({ visible, onClose }) => 
                           Over-The-Air (OTA) Updates
                         </Text>
                         <Text style={[styles.bioSubtitle, { color: theme.muted }]}>
-                          {updateStatus || 'Auto-checks & updates on launch'}
+                          {updateStatus || (Updates.isEnabled ? (Updates.updateId ? `Update: ${Updates.updateId.slice(0, 8)}...` : 'Release build (Embedded)') : 'Dev / Expo Go')}
                         </Text>
                       </View>
                     </View>

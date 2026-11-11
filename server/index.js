@@ -785,7 +785,6 @@ app.get('/api/manifest', (req, res) => {
         const form = new FormData();
         form.append('directive', JSON.stringify({ type: 'noUpdateAvailable' }), {
           contentType: 'application/json',
-          header: { 'content-type': 'application/json; charset=utf-8' },
         });
         res.setHeader('expo-protocol-version', 1);
         res.setHeader('expo-sfv-version', 0);
@@ -809,7 +808,6 @@ app.get('/api/manifest', (req, res) => {
         const form = new FormData();
         form.append('directive', JSON.stringify({ type: 'noUpdateAvailable' }), {
           contentType: 'application/json',
-          header: { 'content-type': 'application/json; charset=utf-8' },
         });
         res.setHeader('expo-protocol-version', 1);
         res.setHeader('expo-sfv-version', 0);
@@ -860,7 +858,7 @@ app.get('/api/manifest', (req, res) => {
 
     const manifest = {
       id: updateId,
-      createdAt: fileStat.mtime.toISOString(),
+      createdAt: metadata.createdAt || fileStat.mtime.toISOString(),
       runtimeVersion: safeRuntime,
       launchAsset: {
         key: bundleKey,
@@ -889,9 +887,6 @@ app.get('/api/manifest', (req, res) => {
       const form = new FormData();
       form.append('manifest', JSON.stringify(manifest), {
         contentType: 'application/json',
-        header: {
-          'content-type': 'application/json; charset=utf-8',
-        },
       });
       form.append('extensions', JSON.stringify({ assetRequestHeaders }), {
         contentType: 'application/json',
