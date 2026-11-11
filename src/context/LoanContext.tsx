@@ -52,7 +52,7 @@ interface LoanContextType {
   ) => Promise<{ success: boolean; error?: string }>;
   deletePayment: (loanId: string, paymentId: string) => Promise<boolean>;
   toggleLoanStatus: (loanId: string) => Promise<boolean>;
-  syncLoansNow: () => Promise<void>;
+  syncLoansNow: (silent?: boolean) => Promise<void>;
 }
 
 const LoanContext = createContext<LoanContextType | undefined>(undefined);
@@ -502,10 +502,10 @@ export const LoanProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     [loans, persist, toast, user]
   );
 
-  // Manual Full Sync
-  const syncLoansNow = useCallback(async () => {
+  // Manual / Auto Full Sync
+  const syncLoansNow = useCallback(async (silent = false) => {
     if (!user || user.email === 'demo@fund.local') {
-      toast('Demo mode: operates locally');
+      if (!silent) toast('Demo mode: operates locally');
       return;
     }
 
@@ -515,7 +515,7 @@ export const LoanProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       const { data, error } = await apiFetchWithTimeout<{ loans: Loan[] }>(queryUrl, undefined, 8000);
 
       if (error) {
-        toast(`Sync failed: ${error}`);
+        if (!silent) toast(`Sync failed: ${error}`);
         return;
       }
 
@@ -548,9 +548,9 @@ export const LoanProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       const merged = Array.from(map.values()).sort((a, b) => b.createdAt - a.createdAt);
       setLoans(merged);
       await persist(merged);
-      toast('Loans synchronized with cloud ✓');
+      if (!silent) toast('Loans synchronized with cloud ✓');
     } catch {
-      toast('Sync failed — check connection');
+      if (!silent) toast('Sync failed — check connection');
     } finally {
       setIsSyncing(false);
     }

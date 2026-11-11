@@ -40,7 +40,7 @@ interface TransactionContextType {
   }) => Promise<{ success: boolean; error?: string }>;
   deleteTransaction: (id: string) => Promise<boolean>;
   // Sync & maintenance
-  syncNow: () => Promise<void>;
+  syncNow: (silent?: boolean) => Promise<void>;
   reloadSampleData: () => Promise<void>;
   clearAllData: () => Promise<void>;
   exportBackup: () => BackupData | null;
@@ -425,14 +425,14 @@ export const TransactionProvider: React.FC<{ children: ReactNode }> = ({ childre
   }, []);
 
   // Sync with MongoDB Atlas (two-way merge: pulls remote + pushes local)
-  const syncNow = useCallback(async () => {
+  const syncNow = useCallback(async (silent = false) => {
     if (!user) {
-      toast('Please login to sync');
+      if (!silent) toast('Please login to sync');
       return;
     }
 
     if (user.email === 'demo@fund.local') {
-      toast('Demo account runs locally. Register or login to sync with cloud.');
+      if (!silent) toast('Demo account runs locally. Register or login to sync with cloud.');
       return;
     }
 
@@ -476,17 +476,17 @@ export const TransactionProvider: React.FC<{ children: ReactNode }> = ({ childre
           const synced = workingList.map(t => ({ ...t, synced: true }));
           setTransactions(synced);
           await persist(synced);
-          toast(`Synced ${workingList.length} transaction${workingList.length > 1 ? 's' : ''} to MongoDB Atlas ✓`);
+          if (!silent) toast(`Synced ${workingList.length} transaction${workingList.length > 1 ? 's' : ''} to MongoDB Atlas ✓`);
           return;
         } else {
-          toast(syncError || fetchError || 'Sync failed — check connection');
+          if (!silent) toast(syncError || fetchError || 'Sync failed — check connection');
           return;
         }
       } else {
-        toast('No transactions to sync');
+        if (!silent) toast('No transactions to sync');
       }
     } catch (err: any) {
-      toast(err?.message || 'Sync failed — check connection');
+      if (!silent) toast(err?.message || 'Sync failed — check connection');
     } finally {
       setTimeout(() => setIsSyncing(false), 300);
     }

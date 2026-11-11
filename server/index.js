@@ -167,6 +167,7 @@ const userSchema = new mongoose.Schema({
   email: { type: String, required: true, unique: true, lowercase: true, trim: true, index: true },
   name:  { type: String, required: true, trim: true },
   passwordHash: { type: String, required: true },
+  biometricSecret: { type: String, default: '' },
   createdAt: { type: Date, default: Date.now },
 });
 
@@ -259,7 +260,7 @@ const requireAuth = (req, res, next) => {
 
   const token = authHeader.slice(7).trim();
   if (!token || token === 'local_token' || token === 'bio_offline_token') {
-    return res.status(401).json({ error: 'Please log in with your email and password to connect to cloud.' });
+    return res.status(401).json({ error: 'Please log in to connect to cloud.' });
   }
 
   try {
@@ -437,6 +438,55 @@ const handleProfileUpdate = async (req, res) => {
 app.put('/api/auth/profile', apiLimiter, requireAuth, handleProfileUpdate);
 app.post('/api/auth/profile', apiLimiter, requireAuth, handleProfileUpdate);
 
+// Register Biometric Secret for Device (Authenticated)
+app.post('/api/auth/biometric/register', apiLimiter, requireAuth, async (req, res) => {
+  try {
+    const rawSecret = sanitizeString(req.body.biometricSecret, 128);
+    if (!rawSecret || rawSecret.length < 12) {
+      return res.status(400).json({ error: 'Valid biometric secret required' });
+    }
+    const user = await User.findById(req.user.id);
+    if (!user) return res.status(404).json({ error: 'User not found' });
+
+    user.biometricSecret = await bcrypt.hash(rawSecret, 10);
+    await user.save();
+    console.log(`[API] 🔐 Biometric secret registered for user: ${user._id} (${user.email})`);
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Biometric register error:', err.message);
+    res.status(500).json({ error: 'Failed to register biometric' });
+  }
+});
+
+// Biometric Cloud Login (Issues fresh JWT for verified device sensor unlock)
+app.post('/api/auth/biometric/login', authLimiter, async (req, res) => {
+  try {
+    const rawEmail = sanitizeString(req.body.email, 120).toLowerCase();
+    const rawSecret = sanitizeString(req.body.biometricSecret, 128);
+
+    if (!rawEmail || !rawSecret) {
+      return res.status(400).json({ error: 'Email and biometric secret required' });
+    }
+
+    const user = await User.findOne({ email: rawEmail });
+    if (!user || !user.biometricSecret) {
+      // If user exists but hasn't registered secret on server, check if secret matches
+      return res.status(401).json({ error: 'Biometric login not enrolled on server for this account' });
+    }
+
+    const valid = await bcrypt.compare(rawSecret, user.biometricSecret);
+    if (!valid) {
+      return res.status(401).json({ error: 'Invalid biometric credential' });
+    }
+
+    console.log(`[API] 🔐 Biometric login verified for: ${user._id} (${user.email})`);
+    res.json({ user: sanitizeUser(user), token: makeToken(user) });
+  } catch (err) {
+    console.error('Biometric login error:', err.message);
+    res.status(500).json({ error: 'Biometric login failed' });
+  }
+});
+
 // ─── 11. Transaction Routes (JWT Protected & IDOR Defended) ─────────────────
 
 // Fetch user transactions (Strictly scoped to authenticated user)
@@ -571,7 +621,7 @@ app.post('/api/sync', apiLimiter, requireAuth, async (req, res) => {
   }
 });
 
-// ─── 12. Loan & Sapati Routes (JWT Protected & IDOR Defended) ─────────────────
+// ─── 12. Loan & Debt Routes (JWT Protected & IDOR Defended) ─────────────────
 
 // Fetch user loans (Strictly scoped to authenticated user)
 app.get('/api/loans', apiLimiter, requireAuth, async (req, res) => {

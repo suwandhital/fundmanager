@@ -273,6 +273,18 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         setUser(userObj);
         setHasPromptedBioThisSession(false);
 
+        // If biometric login was previously enabled, sync fresh cloud credentials
+        const bioFlag = await secureGet(KEY_BIO_ENABLED);
+        if (bioFlag === 'true' && remoteToken && remoteToken !== 'local_token') {
+          let bioSecret = await secureGet('fm.bio.secret.v1');
+          if (!bioSecret) {
+            bioSecret = uid() + uid() + uid();
+            await secureSet('fm.bio.secret.v1', bioSecret);
+          }
+          await secureSet(KEY_BIO_USER, JSON.stringify({ user: userObj, token: remoteToken, bioSecret }));
+          apiFetchWithTimeout('/api/auth/biometric/register', { biometricSecret: bioSecret }, 4000).catch(() => {});
+        }
+
         return { success: true };
       } catch (err: any) {
         return { success: false, error: err?.message || 'Registration failed' };
@@ -369,6 +381,18 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         setUser(userObj);
         setHasPromptedBioThisSession(false);
 
+        // If biometric login was previously enabled, sync fresh cloud credentials
+        const bioFlag = await secureGet(KEY_BIO_ENABLED);
+        if (bioFlag === 'true' && remoteToken && remoteToken !== 'local_token') {
+          let bioSecret = await secureGet('fm.bio.secret.v1');
+          if (!bioSecret) {
+            bioSecret = uid() + uid() + uid();
+            await secureSet('fm.bio.secret.v1', bioSecret);
+          }
+          await secureSet(KEY_BIO_USER, JSON.stringify({ user: userObj, token: remoteToken, bioSecret }));
+          apiFetchWithTimeout('/api/auth/biometric/register', { biometricSecret: bioSecret }, 4000).catch(() => {});
+        }
+
         return { success: true };
       } catch (err: any) {
         return { success: false, error: err?.message || 'Login failed' };
@@ -409,16 +433,39 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
     let bioUser: User;
     let bioToken = 'local_token';
+    let bioSecret = '';
     try {
       const parsed = JSON.parse(bioUserRaw);
       if (parsed.user) {
         bioUser = parsed.user;
         bioToken = parsed.token || 'local_token';
+        bioSecret = parsed.bioSecret || '';
       } else {
         bioUser = parsed; // backwards compatibility
       }
     } catch {
       return { success: false, error: 'Corrupt biometric record — please login with password' };
+    }
+
+    if (!bioSecret) {
+      bioSecret = (await secureGet('fm.bio.secret.v1')) || '';
+    }
+
+    // If online, exchange biometric secret for a fresh verified cloud JWT
+    if (bioSecret && bioUser.email) {
+      try {
+        const { data } = await apiFetchWithTimeout<{ user: User; token: string }>(
+          '/api/auth/biometric/login',
+          { email: bioUser.email, biometricSecret: bioSecret },
+          4000
+        );
+        if (data?.token) {
+          bioToken = data.token;
+          if (data.user) bioUser = data.user;
+          // Refresh stored token in KEY_BIO_USER
+          secureSet(KEY_BIO_USER, JSON.stringify({ user: bioUser, token: bioToken, bioSecret })).catch(() => {});
+        }
+      } catch {}
     }
 
     await secureSet(KEY_SESSION, JSON.stringify({ user: bioUser, token: bioToken }));
@@ -454,7 +501,18 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       } catch {}
     }
 
-    await secureSet(KEY_BIO_USER, JSON.stringify({ user, token: sessionToken }));
+    let bioSecret = await secureGet('fm.bio.secret.v1');
+    if (!bioSecret) {
+      bioSecret = uid() + uid() + uid();
+      await secureSet('fm.bio.secret.v1', bioSecret);
+    }
+
+    // Register biometric secret on server so biometric unlock can always fetch/refresh cloud JWT
+    if (sessionToken && sessionToken !== 'local_token') {
+      apiFetchWithTimeout('/api/auth/biometric/register', { biometricSecret: bioSecret }, 5000).catch(() => {});
+    }
+
+    await secureSet(KEY_BIO_USER, JSON.stringify({ user, token: sessionToken, bioSecret }));
     await secureSet(KEY_BIO_ENABLED, 'true');
     setIsBiometricEnabled(true);
     setHasPromptedBioThisSession(true);

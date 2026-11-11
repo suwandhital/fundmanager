@@ -314,7 +314,7 @@ const LoanDetailSheetContent: React.FC<LoanDetailSheetProps> = ({
                   </View>
                   <Text style={[styles.matrixVal, { color: '#f59e0b', fontWeight: '700' }]}>
                     {loan.interestType === 'none'
-                      ? '0% Sapati'
+                      ? '0% Interest Free'
                       : `${loan.interestRate}% / ${loan.interestType === 'monthly' ? 'mo' : 'yr'}`}
                   </Text>
                 </View>
@@ -463,7 +463,7 @@ const LoanDetailSheetContent: React.FC<LoanDetailSheetProps> = ({
                       <TextInput
                         value={payNote}
                         onChangeText={setPayNote}
-                        placeholder="e.g. eSewa, Bank"
+                        placeholder="e.g. Bank transfer, Cash"
                         placeholderTextColor={theme.muted}
                         style={[
                           styles.formInput,
@@ -698,16 +698,16 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   progressTrack: {
-    height: 5,
-    borderRadius: 2.5,
+    height: 3,
+    borderRadius: 1.5,
     overflow: 'hidden',
   },
   progressFill: {
     height: '100%',
-    borderRadius: 2.5,
+    borderRadius: 1.5,
   },
   progressPercent: {
-    fontSize: 11,
+    fontSize: 10.5,
     fontWeight: '600',
     color: '#94a3b8',
     marginTop: 4,

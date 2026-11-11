@@ -64,7 +64,7 @@ export interface LoanPayment {
 
 export interface Loan {
   id: string;
-  type: LoanType; // 'to_pay' = borrowed (loan taken/sapati), 'to_receive' = lent (loan given)
+  type: LoanType; // 'to_pay' = borrowed / debt to pay, 'to_receive' = lent / receivable
   person: string;
   phone?: string;
   principal: number;

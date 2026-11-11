@@ -1,39 +1,14 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Animated, Easing } from 'react-native';
+import React, { useState } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { useAuth } from '../context/AuthContext';
-import { useTransactions } from '../context/TransactionContext';
 import { useTheme } from '../theme/ThemeContext';
-import { RefreshCw, Moon, Sun, LogOut, User as UserIcon } from 'lucide-react-native';
+import { Moon, Sun, LogOut, User as UserIcon } from 'lucide-react-native';
 import { ProfileSheet } from './ProfileSheet';
 
 export const Header: React.FC = () => {
   const { user, logout } = useAuth();
-  const { unsyncedCount, isSyncing, syncNow } = useTransactions();
   const { theme, themeMode, toggleTheme } = useTheme();
-
-  const [spinAnim] = useState(() => new Animated.Value(0));
   const [profileVisible, setProfileVisible] = useState(false);
-
-  useEffect(() => {
-    if (isSyncing) {
-      Animated.loop(
-        Animated.timing(spinAnim, {
-          toValue: 1,
-          duration: 800,
-          easing: Easing.linear,
-          useNativeDriver: true,
-        })
-      ).start();
-    } else {
-      spinAnim.stopAnimation();
-      spinAnim.setValue(0);
-    }
-  }, [isSyncing, spinAnim]);
-
-  const spinInterpolation = spinAnim.interpolate({
-    inputRange: [0, 1],
-    outputRange: ['0deg', '360deg'],
-  });
 
   const displayName = user?.name || user?.email?.split('@')[0] || 'User';
   const isDark = themeMode === 'dark';
@@ -68,30 +43,7 @@ export const Header: React.FC = () => {
           }
         </TouchableOpacity>
 
-        {/* Sync Button */}
-        <TouchableOpacity
-          style={[
-            styles.iconBtn,
-            { backgroundColor: theme.card, borderColor: theme.line },
-          ]}
-          onPress={syncNow}
-          activeOpacity={0.7}
-          disabled={isSyncing}
-        >
-          <Animated.View style={{ transform: [{ rotate: spinInterpolation }] }}>
-            <RefreshCw size={17} color={theme.text} strokeWidth={2} />
-          </Animated.View>
-
-          {unsyncedCount > 0 && (
-            <View style={[styles.badge, { backgroundColor: theme.expense, borderColor: theme.bg }]}>
-              <Text style={styles.badgeText}>
-                {unsyncedCount > 9 ? '9+' : unsyncedCount}
-              </Text>
-            </View>
-          )}
-        </TouchableOpacity>
-
-        {/* Profile Button — near to logout */}
+        {/* Profile Button */}
         <TouchableOpacity
           style={[
             styles.iconBtn,
@@ -162,22 +114,5 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     borderWidth: 1,
     position: 'relative',
-  },
-  badge: {
-    position: 'absolute',
-    top: -4,
-    right: -4,
-    minWidth: 16,
-    height: 16,
-    borderRadius: 8,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 3,
-    borderWidth: 1.5,
-  },
-  badgeText: {
-    color: '#FFFFFF',
-    fontSize: 9,
-    fontWeight: '700',
   },
 });

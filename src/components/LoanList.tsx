@@ -130,7 +130,7 @@ export const LoanList: React.FC<LoanListProps> = ({ type, onSelectLoan }) => {
         <View style={styles.badgeRow}>
           {item.interestType === 'none' ? (
             <View style={[styles.metaPill, { backgroundColor: isDark ? '#1e293b' : '#f1f5f9' }]}>
-              <Text style={[styles.metaPillText, { color: theme.muted }]}>0% Sapati (No Interest)</Text>
+              <Text style={[styles.metaPillText, { color: theme.muted }]}>0% Interest Free</Text>
             </View>
           ) : (
             <View style={[styles.metaPill, { backgroundColor: 'rgba(245, 158, 11, 0.12)' }]}>
@@ -186,15 +186,15 @@ export const LoanList: React.FC<LoanListProps> = ({ type, onSelectLoan }) => {
           </View>
         </View>
 
-        {/* Progress Bar of Principal Repaid */}
+        {/* Minimal Progress Bar of Principal Repaid */}
         <View style={styles.progressContainer}>
-          <View style={[styles.progressTrack, { backgroundColor: isDark ? '#1e293b' : '#e2e8f0' }]}>
+          <View style={[styles.progressTrack, { backgroundColor: isDark ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.06)' }]}>
             <View
               style={[
                 styles.progressFill,
                 {
                   width: `${percentPaid}%`,
-                  backgroundColor: isSettled ? '#10b981' : isToPay ? '#ef4444' : '#3b82f6',
+                  backgroundColor: isSettled ? '#10b981' : isToPay ? theme.expense : theme.income,
                 },
               ]}
             />
@@ -205,13 +205,13 @@ export const LoanList: React.FC<LoanListProps> = ({ type, onSelectLoan }) => {
         <View style={styles.cardFooter}>
           <Text style={[styles.footerText, { color: theme.muted }]}>
             {item.payments && item.payments.length > 0
-              ? `${item.payments.length} repayment${item.payments.length > 1 ? 's' : ''} recorded (${percentPaid}% repaid)`
-              : 'No repayments yet'}
+              ? `${item.payments.length} payment${item.payments.length > 1 ? 's' : ''} • ${percentPaid}% repaid`
+              : 'No payments recorded'}
           </Text>
 
           <View style={styles.viewDetailsRow}>
-            <Text style={[styles.viewDetailsText, { color: theme.accent }]}>Manage Loan</Text>
-            <ChevronRight size={14} color={theme.accent} strokeWidth={2.4} />
+            <Text style={[styles.viewDetailsText, { color: theme.accent }]}>Manage</Text>
+            <ChevronRight size={13} color={theme.accent} strokeWidth={2.4} />
           </View>
         </View>
       </TouchableOpacity>
@@ -296,7 +296,7 @@ export const LoanList: React.FC<LoanListProps> = ({ type, onSelectLoan }) => {
             </Text>
             <Text style={[styles.emptySubtitle, { color: theme.muted }]}>
               {isToPay
-                ? 'Add loans or sapati you have taken using the + button below.'
+                ? 'Add borrowed loans using the + button below.'
                 : 'Add money you have lent to others using the + button below.'}
             </Text>
           </View>
@@ -433,17 +433,17 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   progressContainer: {
-    marginTop: 6,
-    marginBottom: 4,
+    marginTop: 4,
+    marginBottom: 2,
   },
   progressTrack: {
-    height: 4,
-    borderRadius: 2,
+    height: 2.5,
+    borderRadius: 1.5,
     overflow: 'hidden',
   },
   progressFill: {
     height: '100%',
-    borderRadius: 2,
+    borderRadius: 1.5,
   },
   cardFooter: {
     flexDirection: 'row',

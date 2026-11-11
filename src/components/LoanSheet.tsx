@@ -273,7 +273,7 @@ const LoanSheetForm: React.FC<LoanSheetProps> = ({
               <Text style={[styles.label, { color: theme.muted }]}>Interest Calculation</Text>
               <View style={styles.interestTypeRow}>
                 {[
-                  { key: 'none', label: '0% Sapati' },
+                  { key: 'none', label: '0% Interest Free' },
                   { key: 'monthly', label: 'Monthly %' },
                   { key: 'yearly', label: 'Yearly %' },
                 ].map(opt => {
@@ -368,7 +368,7 @@ const LoanSheetForm: React.FC<LoanSheetProps> = ({
                 <TextInput
                   value={note}
                   onChangeText={setNote}
-                  placeholder="e.g. Emergency medical sapati, Car installment"
+                  placeholder="e.g. Emergency medical bill, Vehicle installment"
                   placeholderTextColor={theme.muted}
                   style={[styles.textInput, { color: theme.text }]}
                 />

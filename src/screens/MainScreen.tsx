@@ -95,12 +95,10 @@ export const MainScreen: React.FC = () => {
         <BalanceCard />
       </View>
 
-      {/* Overview Graph: visible on Transactions tab */}
-      {activeTab === 'transactions' && (
-        <View style={styles.chartSection}>
-          <LineChart />
-        </View>
-      )}
+      {/* Overview Graph: visible on all tabs */}
+      <View style={styles.chartSection}>
+        <LineChart />
+      </View>
 
       {/* ── Dynamic Section: switched between Transactions, To Pay & To Receive ── */}
       <View
@@ -214,7 +212,7 @@ export const MainScreen: React.FC = () => {
           </View>
         )}
 
-        {/* Tab View 2: To Pay (Debts, Loans taken & Sapati to pay) */}
+        {/* Tab View 2: To Pay (Debts & Loans Borrowed) */}
         {activeTab === 'to_pay' && (
           <View style={styles.viewContainer}>
             <View style={styles.summaryWrap}>
@@ -226,7 +224,7 @@ export const MainScreen: React.FC = () => {
           </View>
         )}
 
-        {/* Tab View 3: To Receive (Lent money & Sapati given) */}
+        {/* Tab View 3: To Receive (Lent Money & Receivables) */}
         {activeTab === 'to_receive' && (
           <View style={styles.viewContainer}>
             <View style={styles.summaryWrap}>

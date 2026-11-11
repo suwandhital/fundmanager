@@ -1,1 +1,11 @@
-{"version":0,"bundler":"metro","createdAt":"2026-11-11T12:05:00.000Z","fileMetadata":{"android":{"bundle":"_expo/static/js/android/index-00621c608075eef73e3ace5392a0bd43.hbc","assets":[]}}}
+{
+  "version": 0,
+  "bundler": "metro",
+  "fileMetadata": {
+    "android": {
+      "bundle": "_expo/static/js/android/index-4fefcf9be2ffa50151ae63c4d2c6d58f.hbc",
+      "assets": []
+    }
+  },
+  "createdAt": "2026-11-11T17:12:52.779Z"
+}
