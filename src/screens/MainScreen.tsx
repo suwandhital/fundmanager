@@ -369,7 +369,7 @@ const styles = StyleSheet.create({
   },
   tabBar: {
     flexDirection: 'row',
-    borderRadius: 14,
+    borderRadius: 0,
     padding: 3,
     borderWidth: 1,
     marginBottom: 6,
@@ -380,7 +380,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 7,
-    borderRadius: 11,
+    borderRadius: 0,
   },
   tabBtnActive: {
     shadowColor: '#000',
@@ -413,7 +413,7 @@ const styles = StyleSheet.create({
     right: 18,
     width: 48,
     height: 48,
-    borderRadius: 24,
+    borderRadius: 0,
     alignItems: 'center',
     justifyContent: 'center',
     shadowColor: '#000',
@@ -437,7 +437,7 @@ const styles = StyleSheet.create({
   modalCard: {
     width: '100%',
     maxWidth: 340,
-    borderRadius: 20,
+    borderRadius: 0,
     padding: 24,
     alignItems: 'center',
     borderWidth: 1,
@@ -445,7 +445,7 @@ const styles = StyleSheet.create({
   modalIcon: {
     width: 60,
     height: 60,
-    borderRadius: 30,
+    borderRadius: 0,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 16,
@@ -468,7 +468,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 12,
-    borderRadius: 12,
+    borderRadius: 0,
     gap: 8,
   },
   modalBtnText: {

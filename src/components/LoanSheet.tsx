@@ -154,7 +154,13 @@ const LoanSheetForm: React.FC<LoanSheetProps> = ({
           {/* Header */}
           <View style={styles.sheetHeader}>
             <Text style={[styles.sheetTitle, { color: theme.text }]}>
-              {isEditing ? 'Edit Loan Record' : isToPay ? 'Add Loan to Pay' : 'Add Loan to Receive'}
+              {isEditing
+                ? isToPay
+                  ? 'Edit Debt Record'
+                  : 'Edit Receivable Record'
+                : isToPay
+                ? 'Record Borrowed Debt'
+                : 'Record Loan Given'}
             </Text>
 
             <View style={styles.headerRight}>
@@ -191,7 +197,7 @@ const LoanSheetForm: React.FC<LoanSheetProps> = ({
                     isToPay && { fontWeight: '700' },
                   ]}
                 >
-                  To Pay (ऋण लिएको)
+                  To Pay (Borrowed)
                 </Text>
               </TouchableOpacity>
 
@@ -210,7 +216,7 @@ const LoanSheetForm: React.FC<LoanSheetProps> = ({
                     !isToPay && { fontWeight: '700' },
                   ]}
                 >
-                  To Receive (सापती दिएको)
+                  To Receive (Lent)
                 </Text>
               </TouchableOpacity>
             </View>
@@ -383,7 +389,15 @@ const LoanSheetForm: React.FC<LoanSheetProps> = ({
               activeOpacity={0.88}
             >
               <Text style={styles.saveBtnText}>
-                {isSubmitting ? 'Saving...' : isEditing ? 'Update Loan' : 'Save Loan'}
+                {isSubmitting
+                  ? 'Saving...'
+                  : isEditing
+                  ? isToPay
+                    ? 'Update Debt Record'
+                    : 'Update Receivable Record'
+                  : isToPay
+                  ? 'Save Borrowed Debt'
+                  : 'Save Receivable Record'}
               </Text>
             </TouchableOpacity>
           </ScrollView>
@@ -402,8 +416,8 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
   },
   sheet: {
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
+    borderTopLeftRadius: 0,
+    borderTopRightRadius: 0,
     paddingTop: 16,
     maxHeight: '88%',
     shadowColor: '#000',
@@ -444,14 +458,14 @@ const styles = StyleSheet.create({
   },
   typeSwitcher: {
     flexDirection: 'row',
-    borderRadius: 12,
+    borderRadius: 0,
     padding: 4,
   },
   typeBtn: {
     flex: 1,
     paddingVertical: 9,
     alignItems: 'center',
-    borderRadius: 9,
+    borderRadius: 0,
   },
   typeBtnText: {
     fontSize: 13,
@@ -469,7 +483,7 @@ const styles = StyleSheet.create({
   amountInput: {
     fontSize: 24,
     fontWeight: '800',
-    borderRadius: 12,
+    borderRadius: 0,
     paddingHorizontal: 14,
     paddingVertical: 10,
     borderWidth: 1,
@@ -477,7 +491,7 @@ const styles = StyleSheet.create({
   iconInputWrap: {
     flexDirection: 'row',
     alignItems: 'center',
-    borderRadius: 12,
+    borderRadius: 0,
     paddingHorizontal: 12,
     borderWidth: 1,
   },
@@ -502,7 +516,7 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingVertical: 8,
     alignItems: 'center',
-    borderRadius: 10,
+    borderRadius: 0,
     borderWidth: 1,
   },
   interestTypeBtnText: {
@@ -512,7 +526,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
   },
   saveBtn: {
-    borderRadius: 14,
+    borderRadius: 0,
     paddingVertical: 14,
     alignItems: 'center',
     marginTop: 8,

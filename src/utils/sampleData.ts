@@ -21,13 +21,13 @@ export const seedDemoTransactions = (): Transaction[] => {
 
   const recent = [
     { d: 0, type: 'income' as const, amount: 85000, note: 'Monthly salary', category: 'Salary', hour: 9, min: 15 },
-    { d: 0, type: 'expense' as const, amount: 250, note: 'Momo & chiya', category: 'Food', hour: 11, min: 5 },
-    { d: 0, type: 'expense' as const, amount: 180, note: 'Pathao ride', category: 'Transport', hour: 14, min: 40 },
-    { d: 0, type: 'expense' as const, amount: 850, note: 'Dinner at Thamel', category: 'Food', hour: 19, min: 20 },
-    { d: 1, type: 'expense' as const, amount: 3240, note: 'Bhatbhateni groceries', category: 'Food', hour: 17, min: 10 },
+    { d: 0, type: 'expense' as const, amount: 250, note: 'Lunch & coffee', category: 'Food', hour: 11, min: 5 },
+    { d: 0, type: 'expense' as const, amount: 180, note: 'Taxi ride', category: 'Transport', hour: 14, min: 40 },
+    { d: 0, type: 'expense' as const, amount: 850, note: 'Downtown dinner', category: 'Food', hour: 19, min: 20 },
+    { d: 1, type: 'expense' as const, amount: 3240, note: 'Supermarket groceries', category: 'Food', hour: 17, min: 10 },
     { d: 1, type: 'income' as const, amount: 15000, note: 'Freelance project', category: 'Freelance', hour: 22, min: 0 },
-    { d: 2, type: 'expense' as const, amount: 2499, note: 'WorldLink internet', category: 'Bills', hour: 10, min: 30 },
-    { d: 3, type: 'expense' as const, amount: 500, note: 'NTC recharge', category: 'Bills', hour: 8, min: 45 },
+    { d: 2, type: 'expense' as const, amount: 2499, note: 'Broadband internet', category: 'Bills', hour: 10, min: 30 },
+    { d: 3, type: 'expense' as const, amount: 500, note: 'Mobile recharge', category: 'Bills', hour: 8, min: 45 },
     { d: 4, type: 'income' as const, amount: 2000, note: 'Family gift', category: 'Gift', hour: 15, min: 0 },
     { d: 6, type: 'expense' as const, amount: 25000, note: 'House rent', category: 'Rent', hour: 12, min: 0 },
   ];
@@ -130,7 +130,7 @@ export const seedDemoLoans = (): import('../types').Loan[] => {
     {
       id: uid(),
       type: 'to_pay',
-      person: 'Nabil Bank (Personal Loan)',
+      person: 'Commercial Bank (Personal Loan)',
       phone: '01-4422333',
       principal: 200000,
       startDate: ymd(d60),
@@ -151,7 +151,7 @@ export const seedDemoLoans = (): import('../types').Loan[] => {
           type: 'both',
           principalPaid: 21160,
           interestPaid: 3840,
-          note: '1st Month EMI paid via ConnectIPS',
+          note: '1st Month EMI paid via Online Banking',
           createdAt: d30.getTime(),
         },
       ],
@@ -159,7 +159,7 @@ export const seedDemoLoans = (): import('../types').Loan[] => {
     {
       id: uid(),
       type: 'to_pay',
-      person: 'Ramesh Sharma (Personal)',
+      person: 'Robert Miller (Personal)',
       phone: '9841234567',
       principal: 40000,
       startDate: ymd(d30),
@@ -188,7 +188,7 @@ export const seedDemoLoans = (): import('../types').Loan[] => {
     {
       id: uid(),
       type: 'to_receive',
-      person: 'Bikash Adhikari (Colleague)',
+      person: 'David Chen (Colleague)',
       phone: '9851098765',
       principal: 60000,
       startDate: ymd(d60),
@@ -217,7 +217,7 @@ export const seedDemoLoans = (): import('../types').Loan[] => {
     {
       id: uid(),
       type: 'to_receive',
-      person: 'Sunil Thapa (Neighbor)',
+      person: 'Sarah Jenkins (Neighbor)',
       phone: '9801234890',
       principal: 15000,
       startDate: ymd(d15),

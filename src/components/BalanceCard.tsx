@@ -75,7 +75,7 @@ export const BalanceCard: React.FC = () => {
 
 const styles = StyleSheet.create({
   card: {
-    borderRadius: 16,
+    borderRadius: 0,
     padding: 13,
     borderWidth: 1,
     shadowColor: '#0f172a',
@@ -126,7 +126,7 @@ const styles = StyleSheet.create({
   pill: {
     paddingVertical: 3,
     paddingHorizontal: 9,
-    borderRadius: 99,
+    borderRadius: 0,
     backgroundColor: 'rgba(255,255,255,0.1)',
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.08)',
@@ -143,7 +143,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255,255,255,0.05)',
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.05)',
-    borderRadius: 12,
+    borderRadius: 0,
     overflow: 'hidden',
   },
   metric: {
@@ -164,7 +164,7 @@ const styles = StyleSheet.create({
   iconBox: {
     width: 20,
     height: 20,
-    borderRadius: 6,
+    borderRadius: 0,
     alignItems: 'center',
     justifyContent: 'center',
   },

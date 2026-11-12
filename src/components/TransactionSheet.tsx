@@ -309,7 +309,7 @@ const TransactionSheetForm: React.FC<TransactionSheetProps> = ({
                       onChange={e => setDate((e.target as HTMLInputElement).value)}
                       style={{
                         height: 42,
-                        borderRadius: 12,
+                        borderRadius: 0,
                         border: `1px solid ${theme.line}`,
                         backgroundColor: theme.fieldBg,
                         color: theme.text,
@@ -401,8 +401,8 @@ const styles = StyleSheet.create({
     width: '100%',
     maxWidth: 480,
     maxHeight: '92%',
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
+    borderTopLeftRadius: 0,
+    borderTopRightRadius: 0,
     paddingHorizontal: 16,
     paddingTop: 8,
     paddingBottom: Platform.OS === 'ios' ? 34 : 20,
@@ -410,7 +410,7 @@ const styles = StyleSheet.create({
   sheetHandle: {
     width: 36,
     height: 4,
-    borderRadius: 99,
+    borderRadius: 0,
     alignSelf: 'center',
     marginVertical: 6,
   },
@@ -437,7 +437,7 @@ const styles = StyleSheet.create({
   closeBtn: {
     width: 34,
     height: 34,
-    borderRadius: 10,
+    borderRadius: 0,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
@@ -448,14 +448,14 @@ const styles = StyleSheet.create({
   },
   typeToggle: {
     flexDirection: 'row',
-    borderRadius: 12,
+    borderRadius: 0,
     padding: 3,
     gap: 3,
   },
   toggleBtn: {
     flex: 1,
     paddingVertical: 9,
-    borderRadius: 9,
+    borderRadius: 0,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -473,7 +473,7 @@ const styles = StyleSheet.create({
   amountWrap: {
     flexDirection: 'row',
     alignItems: 'center',
-    borderRadius: 14,
+    borderRadius: 0,
     borderWidth: 1,
     paddingVertical: 9,
     paddingHorizontal: 14,
@@ -507,7 +507,7 @@ const styles = StyleSheet.create({
     paddingLeft: 2,
   },
   field: {
-    borderRadius: 12,
+    borderRadius: 0,
     borderWidth: 1,
     paddingHorizontal: 13,
     paddingVertical: 10.5,
@@ -521,7 +521,7 @@ const styles = StyleSheet.create({
   catChip: {
     paddingVertical: 8,
     paddingHorizontal: 13,
-    borderRadius: 10,
+    borderRadius: 0,
     borderWidth: 1,
   },
   catChipText: {
@@ -538,7 +538,7 @@ const styles = StyleSheet.create({
     marginTop: 6,
   },
   btn: {
-    borderRadius: 12,
+    borderRadius: 0,
     paddingVertical: 12,
     alignItems: 'center',
     justifyContent: 'center',

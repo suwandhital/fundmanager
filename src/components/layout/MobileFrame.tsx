@@ -58,7 +58,7 @@ const styles = StyleSheet.create({
     maxWidth: 480,
     height: '100%',
     maxHeight: 920,
-    borderRadius: 24,
+    borderRadius: 0,
     overflow: 'hidden',
     borderWidth: 1,
     ...(Platform.OS === 'web'

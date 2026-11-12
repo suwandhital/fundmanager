@@ -95,7 +95,7 @@ const styles = StyleSheet.create({
     bottom: Platform.OS === 'web' ? 96 : 100,
     paddingVertical: 10,
     paddingHorizontal: 16,
-    borderRadius: 12,
+    borderRadius: 0,
     zIndex: 999,
     maxWidth: '88%',
     shadowColor: '#000',

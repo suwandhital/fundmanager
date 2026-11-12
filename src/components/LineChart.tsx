@@ -87,7 +87,6 @@ export const LineChart: React.FC = () => {
 
   // Drag visual state (drives re-render for the overlay rect)
   const [selBox, setSelBox] = useState<{ x1: number; x2: number } | null>(null);
-  const [isDragging, setIsDragging] = useState(false);
 
   // Mutable drag start X — only read/written in event handlers, never in render
   const dragStartXRef = useRef<number | null>(null);
@@ -122,7 +121,6 @@ export const LineChart: React.FC = () => {
     const x = e.nativeEvent.locationX;
     dragStartXRef.current = x;
     setSelBox({ x1: x, x2: x });
-    setIsDragging(true);
   }, []);
 
   const onMove = useCallback((e: GestureResponderEvent) => {
@@ -152,7 +150,6 @@ export const LineChart: React.FC = () => {
         setToDate(r1.to);
       }
 
-      setIsDragging(false);
       setSelBox(null);
     },
     [xToBucketIdx, period, setFromDate, setToDate, clearDates]
@@ -160,7 +157,6 @@ export const LineChart: React.FC = () => {
 
   const onTerminate = useCallback(() => {
     dragStartXRef.current = null;
-    setIsDragging(false);
     setSelBox(null);
   }, []);
 
@@ -256,15 +252,6 @@ export const LineChart: React.FC = () => {
           </View>
         </View>
       </View>
-
-      {/* Active filter status (only rendered when dragging or active) */}
-      {(isDragging || hasActiveFilter) && (
-        <Text style={[styles.hint, { color: theme.muted }]}>
-          {isDragging
-            ? 'Release to apply filter'
-            : `📅 ${fromDate}  →  ${toDate} · tap chart to clear`}
-        </Text>
-      )}
 
       {/* SVG chart — raw responder for drag filter */}
       <View
@@ -364,7 +351,7 @@ export const LineChart: React.FC = () => {
 
 const styles = StyleSheet.create({
   card: {
-    borderRadius: 16,
+    borderRadius: 0,
     paddingTop: 12,
     paddingHorizontal: 10,
     paddingBottom: 8,
@@ -383,7 +370,7 @@ const styles = StyleSheet.create({
   segmented: {
     flex: 1,
     flexDirection: 'row',
-    borderRadius: 10,
+    borderRadius: 0,
     padding: 3,
     gap: 2,
   },
@@ -392,7 +379,7 @@ const styles = StyleSheet.create({
     paddingVertical: 5,
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: 7,
+    borderRadius: 0,
   },
   segBtnActive: {
     shadowColor: '#000',
@@ -414,7 +401,7 @@ const styles = StyleSheet.create({
   dot: {
     width: 6,
     height: 6,
-    borderRadius: 3,
+    borderRadius: 0,
   },
   dotLabel: {
     fontSize: 10,
@@ -430,16 +417,9 @@ const styles = StyleSheet.create({
   clearBtn: {
     width: 22,
     height: 22,
-    borderRadius: 7,
+    borderRadius: 0,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  hint: {
-    fontSize: 9.5,
-    fontWeight: '500',
-    marginBottom: 3,
-    paddingLeft: 2,
-    letterSpacing: 0.1,
   },
   chartWrapper: {
     width: '100%',

@@ -188,7 +188,7 @@ const LoanDetailSheetContent: React.FC<LoanDetailSheetProps> = ({
                       { color: isToPay ? theme.expense : theme.income },
                     ]}
                   >
-                    {isToPay ? 'Loan to Pay (ऋण)' : 'Loan to Receive (सापती)'}
+                    {isToPay ? 'Debt to Pay' : 'Loan to Receive'}
                   </Text>
                 </View>
 
@@ -595,8 +595,8 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
   },
   sheet: {
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
+    borderTopLeftRadius: 0,
+    borderTopRightRadius: 0,
     paddingTop: 16,
     maxHeight: '92%',
     shadowColor: '#000',
@@ -632,7 +632,7 @@ const styles = StyleSheet.create({
   typePill: {
     paddingHorizontal: 7,
     paddingVertical: 2,
-    borderRadius: 6,
+    borderRadius: 0,
   },
   typePillText: {
     fontSize: 10.5,
@@ -660,7 +660,7 @@ const styles = StyleSheet.create({
     gap: 14,
   },
   outstandingBanner: {
-    borderRadius: 16,
+    borderRadius: 0,
     padding: 16,
     borderWidth: 1,
   },
@@ -682,7 +682,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 8,
     paddingVertical: 4,
-    borderRadius: 8,
+    borderRadius: 0,
   },
   settledToggleText: {
     fontSize: 11,
@@ -699,12 +699,12 @@ const styles = StyleSheet.create({
   },
   progressTrack: {
     height: 3,
-    borderRadius: 1.5,
+    borderRadius: 0,
     overflow: 'hidden',
   },
   progressFill: {
     height: '100%',
-    borderRadius: 1.5,
+    borderRadius: 0,
   },
   progressPercent: {
     fontSize: 10.5,
@@ -713,7 +713,7 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   matrixCard: {
-    borderRadius: 14,
+    borderRadius: 0,
     borderWidth: 1,
     overflow: 'hidden',
   },
@@ -760,7 +760,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 10,
     paddingVertical: 6,
-    borderRadius: 10,
+    borderRadius: 0,
   },
   addPaymentBtnText: {
     fontSize: 11.5,
@@ -768,7 +768,7 @@ const styles = StyleSheet.create({
     color: '#ffffff',
   },
   paymentFormCard: {
-    borderRadius: 14,
+    borderRadius: 0,
     padding: 12,
     borderWidth: 1,
     gap: 10,
@@ -786,7 +786,7 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
   },
   formInput: {
-    borderRadius: 10,
+    borderRadius: 0,
     paddingHorizontal: 10,
     paddingVertical: 8,
     borderWidth: 1,
@@ -800,7 +800,7 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     paddingVertical: 6,
-    borderRadius: 8,
+    borderRadius: 0,
     borderWidth: 1,
   },
   typeSelectPillText: {
@@ -818,7 +818,7 @@ const styles = StyleSheet.create({
   cancelBtn: {
     paddingHorizontal: 12,
     paddingVertical: 8,
-    borderRadius: 8,
+    borderRadius: 0,
     borderWidth: 1,
   },
   cancelBtnText: {
@@ -828,7 +828,7 @@ const styles = StyleSheet.create({
   submitPaymentBtn: {
     paddingHorizontal: 14,
     paddingVertical: 8,
-    borderRadius: 8,
+    borderRadius: 0,
   },
   submitPaymentBtnText: {
     fontSize: 12,
@@ -837,7 +837,7 @@ const styles = StyleSheet.create({
   },
   emptyPayments: {
     padding: 18,
-    borderRadius: 12,
+    borderRadius: 0,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -854,7 +854,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     padding: 11,
-    borderRadius: 12,
+    borderRadius: 0,
     borderWidth: 1,
   },
   paymentLeft: {
@@ -872,7 +872,7 @@ const styles = StyleSheet.create({
   payTypeTag: {
     paddingHorizontal: 6,
     paddingVertical: 2,
-    borderRadius: 5,
+    borderRadius: 0,
   },
   payTypeTagText: {
     fontSize: 10,
@@ -890,7 +890,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 12,
-    borderRadius: 12,
+    borderRadius: 0,
     borderWidth: 1,
     marginTop: 8,
   },

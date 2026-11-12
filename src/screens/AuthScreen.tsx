@@ -289,7 +289,7 @@ const styles = StyleSheet.create({
   logoMark: {
     width: 66,
     height: 66,
-    borderRadius: 22,
+    borderRadius: 0,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 14,
@@ -336,7 +336,7 @@ const styles = StyleSheet.create({
     paddingLeft: 2,
   },
   field: {
-    borderRadius: 12,
+    borderRadius: 0,
     borderWidth: 1,
     paddingHorizontal: 14,
     paddingVertical: 12,
@@ -346,7 +346,7 @@ const styles = StyleSheet.create({
   passwordWrap: {
     flexDirection: 'row',
     alignItems: 'center',
-    borderRadius: 12,
+    borderRadius: 0,
     borderWidth: 1,
     paddingHorizontal: 14,
     paddingVertical: 12,
@@ -359,7 +359,7 @@ const styles = StyleSheet.create({
     ...(Platform.OS === 'web' ? { outlineStyle: 'none' as any } : {}),
   },
   errorBand: {
-    borderRadius: 10,
+    borderRadius: 0,
     borderWidth: 1,
     paddingVertical: 9,
     paddingHorizontal: 12,
@@ -370,7 +370,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   btn: {
-    borderRadius: 12,
+    borderRadius: 0,
     paddingVertical: 12,
     paddingHorizontal: 16,
     flexDirection: 'row',

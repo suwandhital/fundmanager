@@ -86,7 +86,7 @@ const styles = StyleSheet.create({
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    borderRadius: 10,
+    borderRadius: 0,
     borderWidth: 1,
     paddingHorizontal: 10,
     height: 38,
@@ -101,7 +101,7 @@ const styles = StyleSheet.create({
   },
   chips: {
     flexDirection: 'row',
-    borderRadius: 10,
+    borderRadius: 0,
     padding: 3,
     gap: 2,
     flexShrink: 0,
@@ -109,7 +109,7 @@ const styles = StyleSheet.create({
   chip: {
     paddingVertical: 7,
     paddingHorizontal: 11,
-    borderRadius: 7,
+    borderRadius: 0,
     alignItems: 'center',
     justifyContent: 'center',
   },

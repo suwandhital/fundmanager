@@ -321,7 +321,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 10,
     paddingVertical: 7,
-    borderRadius: 10,
+    borderRadius: 0,
     borderWidth: 1,
   },
   searchInput: {
@@ -336,7 +336,7 @@ const styles = StyleSheet.create({
   filterChip: {
     paddingHorizontal: 10,
     paddingVertical: 4,
-    borderRadius: 14,
+    borderRadius: 0,
     borderWidth: 1,
   },
   filterChipText: {
@@ -355,7 +355,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   card: {
-    borderRadius: 16,
+    borderRadius: 0,
     padding: 13,
     borderWidth: 1,
     shadowColor: '#000',
@@ -388,7 +388,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 7,
     paddingVertical: 2.5,
-    borderRadius: 8,
+    borderRadius: 0,
   },
   statusText: {
     fontSize: 10,
@@ -405,7 +405,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 6,
     paddingVertical: 2,
-    borderRadius: 6,
+    borderRadius: 0,
   },
   metaPillText: {
     fontSize: 10,
@@ -415,7 +415,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     padding: 9,
-    borderRadius: 10,
+    borderRadius: 0,
     marginVertical: 4,
   },
   gridCol: {
@@ -438,12 +438,12 @@ const styles = StyleSheet.create({
   },
   progressTrack: {
     height: 2.5,
-    borderRadius: 1.5,
+    borderRadius: 0,
     overflow: 'hidden',
   },
   progressFill: {
     height: '100%',
-    borderRadius: 1.5,
+    borderRadius: 0,
   },
   cardFooter: {
     flexDirection: 'row',
@@ -473,7 +473,7 @@ const styles = StyleSheet.create({
   emptyIconBox: {
     width: 52,
     height: 52,
-    borderRadius: 26,
+    borderRadius: 0,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 12,

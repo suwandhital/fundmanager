@@ -42,7 +42,7 @@ export const LoanSummaryCard: React.FC<LoanSummaryCardProps> = ({ type }) => {
             )}
           </View>
           <Text style={styles.topLabel}>
-            {isToPay ? 'Total Debt to Pay (ऋण / सापती)' : 'Total to Receive (उठ्न बाँकी)'}
+            {isToPay ? 'Total Debt to Pay' : 'Total to Receive'}
           </Text>
         </View>
 
@@ -98,7 +98,7 @@ export const LoanSummaryCard: React.FC<LoanSummaryCardProps> = ({ type }) => {
 
 const styles = StyleSheet.create({
   card: {
-    borderRadius: 18,
+    borderRadius: 0,
     padding: 14,
     borderWidth: 1,
     shadowColor: '#000',
@@ -121,7 +121,7 @@ const styles = StyleSheet.create({
   iconBox: {
     width: 24,
     height: 24,
-    borderRadius: 7,
+    borderRadius: 0,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -136,7 +136,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 8,
     paddingVertical: 3,
-    borderRadius: 12,
+    borderRadius: 0,
   },
   pillText: {
     fontSize: 11,

@@ -385,8 +385,8 @@ const styles = StyleSheet.create({
     width: '100%',
     maxWidth: 480,
     maxHeight: '90%',
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
+    borderTopLeftRadius: 0,
+    borderTopRightRadius: 0,
     paddingHorizontal: 16,
     paddingTop: 8,
     paddingBottom: Platform.OS === 'ios' ? 34 : 20,
@@ -394,7 +394,7 @@ const styles = StyleSheet.create({
   sheetHandle: {
     width: 36,
     height: 4,
-    borderRadius: 99,
+    borderRadius: 0,
     alignSelf: 'center',
     marginVertical: 6,
   },
@@ -421,7 +421,7 @@ const styles = StyleSheet.create({
   closeBtn: {
     width: 34,
     height: 34,
-    borderRadius: 10,
+    borderRadius: 0,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
@@ -440,7 +440,7 @@ const styles = StyleSheet.create({
   profileAvatar: {
     width: 48,
     height: 48,
-    borderRadius: 16,
+    borderRadius: 0,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -477,7 +477,7 @@ const styles = StyleSheet.create({
     opacity: 0.8,
   },
   field: {
-    borderRadius: 12,
+    borderRadius: 0,
     borderWidth: 1,
     paddingHorizontal: 13,
     paddingVertical: 10.5,
@@ -488,7 +488,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     padding: 12,
-    borderRadius: 14,
+    borderRadius: 0,
     borderWidth: 1,
     gap: 10,
   },
@@ -501,7 +501,7 @@ const styles = StyleSheet.create({
   bioIconWrap: {
     width: 40,
     height: 40,
-    borderRadius: 12,
+    borderRadius: 0,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -522,7 +522,7 @@ const styles = StyleSheet.create({
     marginTop: 6,
   },
   btn: {
-    borderRadius: 12,
+    borderRadius: 0,
     paddingVertical: 12,
     alignItems: 'center',
     justifyContent: 'center',
@@ -534,7 +534,7 @@ const styles = StyleSheet.create({
   updateCheckBtn: {
     paddingHorizontal: 13,
     paddingVertical: 7,
-    borderRadius: 8,
+    borderRadius: 0,
     borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',

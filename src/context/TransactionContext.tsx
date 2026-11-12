@@ -45,6 +45,8 @@ interface TransactionContextType {
   clearAllData: () => Promise<void>;
   exportBackup: () => BackupData | null;
   importBackup: (backup: BackupData) => Promise<{ success: boolean; count?: number; error?: string }>;
+  isExporting: boolean;
+  emailStatement: (customEmail?: string) => Promise<{ success: boolean; previewUrl?: string; message?: string; error?: string }>;
 }
 
 const TransactionContext = createContext<TransactionContextType | undefined>(undefined);
@@ -538,6 +540,60 @@ export const TransactionProvider: React.FC<{ children: ReactNode }> = ({ childre
     return { success: true, count: imported.length };
   }, [persist, toast]);
 
+  // Export active filtered statement to email via PDF
+  const [isExporting, setIsExporting] = useState(false);
+
+  const emailStatement = useCallback(async (customEmail?: string) => {
+    const targetEmail = (customEmail || user?.email || '').trim();
+    if (!targetEmail || !targetEmail.includes('@')) {
+      toast('Please enter a valid email address');
+      return { success: false, error: 'Valid email address required' };
+    }
+
+    setIsExporting(true);
+    try {
+      const range = fromDate && toDate
+        ? `${fromDate} to ${toDate}`
+        : fromDate
+        ? `From ${fromDate}`
+        : toDate
+        ? `Up to ${toDate}`
+        : 'All Recorded Dates';
+
+      const filterSummary = {
+        type: typeFilter,
+        search: search.trim(),
+        range,
+      };
+
+      const res = await apiFetchWithTimeout<{ success: boolean; message?: string; previewUrl?: string }>(
+        '/api/export/email',
+        {
+          targetEmail,
+          userName: user?.name,
+          filterSummary,
+          transactions: filteredTransactions,
+        },
+        20000
+      );
+
+      if (res.data?.success) {
+        toast(res.data.message || `Statement PDF sent to ${targetEmail} ✓`);
+        return { success: true, previewUrl: res.data.previewUrl, message: res.data.message };
+      } else {
+        const errMsg = res.error || 'Failed to email statement';
+        toast(errMsg);
+        return { success: false, error: errMsg };
+      }
+    } catch (err: any) {
+      const errMsg = err?.message || 'Export error';
+      toast(errMsg);
+      return { success: false, error: errMsg };
+    } finally {
+      setIsExporting(false);
+    }
+  }, [user, filteredTransactions, typeFilter, search, fromDate, toDate, toast]);
+
   return (
     <TransactionContext.Provider
       value={{
@@ -566,6 +622,8 @@ export const TransactionProvider: React.FC<{ children: ReactNode }> = ({ childre
         clearAllData,
         exportBackup,
         importBackup,
+        isExporting,
+        emailStatement,
       }}
     >
       {children}

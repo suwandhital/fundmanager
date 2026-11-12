@@ -8,6 +8,8 @@ const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 const FormData = require('form-data');
+const nodemailer = require('nodemailer');
+const { generateTransactionPDF } = require('./pdfGenerator');
 
 const app = express();
 
@@ -618,6 +620,140 @@ app.post('/api/sync', apiLimiter, requireAuth, async (req, res) => {
   } catch (err) {
     console.error('Sync error:', err.message);
     res.status(500).json({ error: 'Failed to synchronize transactions' });
+  }
+});
+
+// ─── Email Statement Export (PDF Generation + Nodemailer Delivery) ───────────
+let cachedTransporter = null;
+
+async function getEmailTransporter() {
+  if (process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS) {
+    return {
+      transporter: nodemailer.createTransport({
+        host: process.env.SMTP_HOST,
+        port: Number(process.env.SMTP_PORT) || 587,
+        secure: process.env.SMTP_SECURE === 'true' || Number(process.env.SMTP_PORT) === 465,
+        auth: {
+          user: process.env.SMTP_USER,
+          pass: process.env.SMTP_PASS,
+        },
+      }),
+      from: process.env.SMTP_FROM || `FundManager <${process.env.SMTP_USER}>`,
+      isTest: false,
+    };
+  }
+
+  // Fallback to test account if custom SMTP server credentials are not set in environment
+  if (!cachedTransporter) {
+    const testAccount = await nodemailer.createTestAccount();
+    cachedTransporter = {
+      transporter: nodemailer.createTransport({
+        host: 'smtp.ethereal.email',
+        port: 587,
+        secure: false,
+        auth: {
+          user: testAccount.user,
+          pass: testAccount.pass,
+        },
+      }),
+      from: '"FundManager Financial" <no-reply@fundmanager.local>',
+      isTest: true,
+    };
+  }
+  return cachedTransporter;
+}
+
+app.post('/api/export/email', apiLimiter, async (req, res) => {
+  try {
+    const { targetEmail, filterSummary, transactions, userName } = req.body;
+
+    let authUser = { name: userName || 'Account User', email: targetEmail };
+    const authHeader = req.headers.authorization || '';
+    if (authHeader.startsWith('Bearer ')) {
+      const token = authHeader.slice(7).trim();
+      if (token && token !== 'local_token' && token !== 'bio_offline_token') {
+        try {
+          const payload = jwt.verify(token, JWT_SECRET, { algorithms: ['HS256'] });
+          if (payload?.email) {
+            authUser.email = payload.email;
+            authUser.id = payload.id;
+          }
+        } catch {}
+      }
+    }
+
+    const emailToSend = (targetEmail || authUser.email || '').toLowerCase().trim();
+    if (!emailToSend || !emailToSend.includes('@')) {
+      return res.status(400).json({ error: 'A valid email address is required for statement export.' });
+    }
+
+    const list = Array.isArray(transactions) ? transactions : [];
+    const filterInfo = filterSummary || { type: 'All', search: '', range: 'All Recorded Dates' };
+
+    // Generate clean executive tabular PDF
+    const pdfBuffer = await generateTransactionPDF({
+      user: { name: authUser.name, email: emailToSend },
+      filterSummary: filterInfo,
+      transactions: list,
+    });
+
+    const { transporter, from, isTest } = await getEmailTransporter();
+    const dateStr = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+    const filename = `FundManager_Statement_${dateStr}.pdf`;
+
+    const info = await transporter.sendMail({
+      from,
+      to: emailToSend,
+      subject: `FundManager Statement Export (${list.length} transaction${list.length === 1 ? '' : 's'})`,
+      text: `Hello,\n\nPlease find attached your requested FundManager financial transaction statement.\n\nSummary:\n- Transactions Included: ${list.length}\n- Filter Applied: ${filterInfo.type || 'All'} (Search: ${filterInfo.search ? `"${filterInfo.search}"` : 'None'})\n- Generated on: ${new Date().toLocaleString()}\n\nThank you for choosing FundManager for secure, local-first financial tracking.`,
+      html: `
+        <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 600px; margin: 0 auto; padding: 24px; border: 1px solid #e2e8f0; background: #ffffff;">
+          <div style="background: #0f172a; padding: 18px 20px; margin: -24px -24px 20px -24px;">
+            <h2 style="color: #ffffff; margin: 0; font-size: 18px; letter-spacing: 0.5px;">FUNDMANAGER</h2>
+            <p style="color: #94a3b8; margin: 4px 0 0 0; font-size: 11px;">FINANCIAL STATEMENT EXPORT</p>
+          </div>
+          <p style="color: #334155; font-size: 14px; line-height: 1.5;">Hello,</p>
+          <p style="color: #334155; font-size: 14px; line-height: 1.5;">Your requested transaction statement has been generated and is attached to this email as a PDF document.</p>
+          
+          <div style="background: #f8fafc; border: 1px solid #e2e8f0; padding: 14px; margin: 16px 0;">
+            <p style="margin: 0 0 6px 0; font-size: 11px; color: #64748b; font-weight: bold; text-transform: uppercase;">Export Summary</p>
+            <p style="margin: 3px 0; font-size: 13px; color: #0f172a;"><strong>Records:</strong> ${list.length} transaction${list.length === 1 ? '' : 's'}</p>
+            <p style="margin: 3px 0; font-size: 13px; color: #0f172a;"><strong>Type Filter:</strong> ${(filterInfo.type || 'All').toUpperCase()}</p>
+            <p style="margin: 3px 0; font-size: 13px; color: #0f172a;"><strong>Search Query:</strong> ${filterInfo.search ? `"${filterInfo.search}"` : 'None'}</p>
+            <p style="margin: 3px 0; font-size: 13px; color: #0f172a;"><strong>Date Range:</strong> ${filterInfo.range || 'All Recorded Dates'}</p>
+          </div>
+
+          <p style="color: #64748b; font-size: 12px; line-height: 1.4; margin-top: 24px;">
+            This email was requested from your FundManager application. Please keep this statement secure for your records.
+          </p>
+        </div>
+      `,
+      attachments: [
+        {
+          filename,
+          content: pdfBuffer,
+          contentType: 'application/pdf',
+        },
+      ],
+    });
+
+    let previewUrl = null;
+    if (isTest && nodemailer.getTestMessageUrl) {
+      previewUrl = nodemailer.getTestMessageUrl(info);
+      console.log(`[API] 📧 Statement email sent to test ethereal mailbox: ${previewUrl}`);
+    } else {
+      console.log(`[API] 📧 Statement email sent successfully to ${emailToSend}`);
+    }
+
+    res.json({
+      success: true,
+      message: `Statement PDF sent successfully to ${emailToSend}!`,
+      previewUrl,
+      recordCount: list.length,
+    });
+  } catch (err) {
+    console.error('[API] Email export error:', err);
+    res.status(500).json({ error: err.message || 'Failed to generate or send PDF email' });
   }
 });
 
