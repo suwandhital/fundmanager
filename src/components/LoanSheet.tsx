@@ -57,7 +57,7 @@ const LoanSheetForm: React.FC<LoanSheetProps> = ({
 
   const isEditing = !!loanToEdit;
 
-  const [type, setType] = useState<LoanType>(loanToEdit?.type || defaultType);
+  const type = loanToEdit?.type || defaultType;
   const [person, setPerson] = useState(loanToEdit?.person || '');
   const [phone, setPhone] = useState(loanToEdit?.phone || '');
   const [principal, setPrincipal] = useState(loanToEdit ? String(loanToEdit.principal) : '');
@@ -180,50 +180,31 @@ const LoanSheetForm: React.FC<LoanSheetProps> = ({
             keyboardShouldPersistTaps="handled"
             contentContainerStyle={styles.scrollContent}
           >
-            {/* Type Switcher */}
-            <View style={[styles.typeSwitcher, { backgroundColor: theme.fieldBg }]}>
-              <TouchableOpacity
+            {/* Locked Type Banner (Strict separation: To Pay only adds To Pay, To Receive only adds To Receive) */}
+            <View
+              style={[
+                styles.typeLockedBanner,
+                {
+                  backgroundColor: isToPay ? 'rgba(239, 68, 68, 0.1)' : 'rgba(16, 185, 129, 0.1)',
+                  borderColor: isToPay ? 'rgba(239, 68, 68, 0.25)' : 'rgba(16, 185, 129, 0.25)',
+                },
+              ]}
+            >
+              <Text
                 style={[
-                  styles.typeBtn,
-                  isToPay && { backgroundColor: theme.expense },
+                  styles.typeLockedText,
+                  { color: isToPay ? theme.expense : theme.income },
                 ]}
-                onPress={() => setType('to_pay')}
-                activeOpacity={0.8}
               >
-                <Text
-                  style={[
-                    styles.typeBtnText,
-                    { color: isToPay ? '#ffffff' : theme.muted },
-                    isToPay && { fontWeight: '700' },
-                  ]}
-                >
-                  To Pay (Borrowed)
-                </Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={[
-                  styles.typeBtn,
-                  !isToPay && { backgroundColor: theme.income },
-                ]}
-                onPress={() => setType('to_receive')}
-                activeOpacity={0.8}
-              >
-                <Text
-                  style={[
-                    styles.typeBtnText,
-                    { color: !isToPay ? '#ffffff' : theme.muted },
-                    !isToPay && { fontWeight: '700' },
-                  ]}
-                >
-                  To Receive (Lent)
-                </Text>
-              </TouchableOpacity>
+                {isToPay ? 'SECTION: BORROWED DEBT (TO PAY)' : 'SECTION: LENT MONEY (TO RECEIVE)'}
+              </Text>
             </View>
 
             {/* Principal Amount Input */}
             <View style={styles.inputGroup}>
-              <Text style={[styles.label, { color: theme.muted }]}>Principal Amount (NRS) *</Text>
+              <Text style={[styles.label, { color: theme.muted }]}>
+                {isToPay ? 'Borrowed Principal Amount (NRS) *' : 'Lent Principal Amount (NRS) *'}
+              </Text>
               <TextInput
                 value={principal}
                 onChangeText={setPrincipal}
@@ -251,7 +232,7 @@ const LoanSheetForm: React.FC<LoanSheetProps> = ({
                 <TextInput
                   value={person}
                   onChangeText={setPerson}
-                  placeholder="e.g. Ram Sharma, Nabil Bank"
+                  placeholder={isToPay ? 'e.g. Commercial Bank, Robert Miller' : 'e.g. David Chen, Sarah Jenkins'}
                   placeholderTextColor={theme.muted}
                   style={[styles.textInput, { color: theme.text }]}
                 />
@@ -456,20 +437,18 @@ const styles = StyleSheet.create({
     paddingBottom: 40,
     gap: 14,
   },
-  typeSwitcher: {
-    flexDirection: 'row',
+  typeLockedBanner: {
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderWidth: 1,
     borderRadius: 0,
-    padding: 4,
-  },
-  typeBtn: {
-    flex: 1,
-    paddingVertical: 9,
     alignItems: 'center',
-    borderRadius: 0,
+    justifyContent: 'center',
   },
-  typeBtnText: {
-    fontSize: 13,
-    fontWeight: '600',
+  typeLockedText: {
+    fontSize: 11,
+    fontWeight: '700',
+    letterSpacing: 0.5,
   },
   inputGroup: {
     gap: 6,

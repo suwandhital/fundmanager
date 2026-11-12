@@ -222,54 +222,52 @@ export const LoanList: React.FC<LoanListProps> = ({ type, onSelectLoan }) => {
     <View style={styles.root}>
       {/* Search & Status Filters */}
       <View style={styles.controlsRow}>
-        {/* Search Input */}
-        <View style={[styles.searchBox, { backgroundColor: theme.fieldBg, borderColor: theme.line }]}>
-          <Search size={14} color={theme.muted} strokeWidth={2} style={{ marginRight: 6 }} />
-          <TextInput
-            value={search}
-            onChangeText={setSearch}
-            placeholder={`Search ${isToPay ? 'lenders' : 'borrowers'}...`}
-            placeholderTextColor={theme.muted}
-            style={[styles.searchInput, { color: theme.text }]}
-          />
-          {search ? (
-            <TouchableOpacity onPress={() => setSearch('')} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-              <X size={14} color={theme.muted} strokeWidth={2} />
-            </TouchableOpacity>
-          ) : null}
-        </View>
-
-        {/* Status Chips */}
-        <View style={styles.chipRow}>
-          {(['all', 'active', 'settled'] as StatusFilter[]).map(s => {
-            const isActive = statusFilter === s;
-            return (
-              <TouchableOpacity
-                key={s}
-                style={[
-                  styles.filterChip,
-                  {
-                    backgroundColor: isActive ? theme.text : theme.fieldBg,
-                    borderColor: isActive ? theme.text : theme.line,
-                  },
-                ]}
-                onPress={() => setStatusFilter(s)}
-                activeOpacity={0.8}
-              >
-                <Text
-                  style={[
-                    styles.filterChipText,
-                    {
-                      color: isActive ? theme.card : theme.muted,
-                      fontWeight: isActive ? '700' : '500',
-                    },
-                  ]}
-                >
-                  {s === 'all' ? 'All' : s === 'active' ? 'Active' : 'Settled'}
-                </Text>
+        <View style={styles.filterRow}>
+          {/* Search Input */}
+          <View style={[styles.searchBox, { backgroundColor: theme.fieldBg, borderColor: theme.line }]}>
+            <Search size={14} color={theme.muted} strokeWidth={2} />
+            <TextInput
+              value={search}
+              onChangeText={setSearch}
+              placeholder={`Search ${isToPay ? 'lenders' : 'borrowers'}...`}
+              placeholderTextColor={theme.muted}
+              style={[styles.searchInput, { color: theme.text }]}
+              autoCapitalize="none"
+              autoCorrect={false}
+            />
+            {search ? (
+              <TouchableOpacity onPress={() => setSearch('')} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                <X size={13} color={theme.muted} />
               </TouchableOpacity>
-            );
-          })}
+            ) : null}
+          </View>
+
+          {/* Status Chips */}
+          <View style={[styles.statusChipsWrap, { backgroundColor: theme.track }]}>
+            {(['all', 'active', 'settled'] as StatusFilter[]).map(s => {
+              const isActive = statusFilter === s;
+              return (
+                <TouchableOpacity
+                  key={s}
+                  style={[
+                    styles.statusChipBtn,
+                    isActive && [styles.statusChipActive, { backgroundColor: theme.raised }],
+                  ]}
+                  onPress={() => setStatusFilter(s)}
+                  activeOpacity={0.75}
+                >
+                  <Text
+                    style={[
+                      styles.statusChipText,
+                      { color: isActive ? theme.text : theme.muted },
+                    ]}
+                  >
+                    {s === 'all' ? 'All' : s === 'active' ? 'Active' : 'Settled'}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
         </View>
       </View>
 
@@ -311,42 +309,60 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   controlsRow: {
-    paddingHorizontal: 12,
-    paddingTop: 8,
-    paddingBottom: 6,
+    paddingHorizontal: 0,
+    paddingTop: 4,
+    paddingBottom: 4,
+  },
+  filterRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
     gap: 8,
   },
   searchBox: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 10,
-    paddingVertical: 7,
+    height: 38,
     borderRadius: 0,
     borderWidth: 1,
+    gap: 7,
+    minWidth: 0,
   },
   searchInput: {
     flex: 1,
-    fontSize: 13,
-    padding: 0,
+    fontSize: 13.5,
+    paddingVertical: 0,
   },
-  chipRow: {
+  statusChipsWrap: {
     flexDirection: 'row',
-    gap: 6,
-  },
-  filterChip: {
-    paddingHorizontal: 10,
-    paddingVertical: 4,
     borderRadius: 0,
-    borderWidth: 1,
+    padding: 3,
+    gap: 2,
+    flexShrink: 0,
   },
-  filterChipText: {
-    fontSize: 11,
-    textTransform: 'capitalize',
+  statusChipBtn: {
+    paddingVertical: 7,
+    paddingHorizontal: 10,
+    borderRadius: 0,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  statusChipActive: {
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  statusChipText: {
+    fontSize: 12.5,
+    fontWeight: '600',
   },
   listContent: {
-    paddingHorizontal: 12,
+    paddingHorizontal: 0,
     paddingBottom: 80,
-    gap: 10,
+    gap: 8,
     paddingTop: 4,
   },
   listEmptyContainer: {

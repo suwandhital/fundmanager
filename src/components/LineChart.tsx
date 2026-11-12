@@ -146,8 +146,10 @@ export const LineChart: React.FC = () => {
         const now = new Date();
         const r0 = bucketIndexToDates(i0, period, now);
         const r1 = bucketIndexToDates(i1, period, now);
-        setFromDate(r0.from);
-        setToDate(r1.to);
+        const fromDateVal = r0.from < r1.from ? r0.from : r1.from;
+        const toDateVal = r0.to > r1.to ? r0.to : r1.to;
+        setFromDate(fromDateVal);
+        setToDate(toDateVal);
       }
 
       setSelBox(null);

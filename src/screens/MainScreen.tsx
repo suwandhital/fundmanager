@@ -9,7 +9,6 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../theme/ThemeContext';
 import { useAuth } from '../context/AuthContext';
-import { useTransactions } from '../context/TransactionContext';
 import { useToast } from '../context/ToastContext';
 import { Header } from '../components/Header';
 import { BalanceCard } from '../components/BalanceCard';
@@ -21,15 +20,15 @@ import { LoanSummaryCard } from '../components/LoanSummaryCard';
 import { LoanList } from '../components/LoanList';
 import { LoanSheet } from '../components/LoanSheet';
 import { LoanDetailSheet } from '../components/LoanDetailSheet';
+import { AnalysisView } from '../components/AnalysisView';
 import { Transaction, Loan, LoanType } from '../types';
-import { Plus, Fingerprint, CreditCard, ArrowDownLeft, ArrowUpRight } from 'lucide-react-native';
+import { Plus, Fingerprint, CreditCard, ArrowDownLeft, ArrowUpRight, TrendingUp } from 'lucide-react-native';
 
-type ActiveTab = 'transactions' | 'to_pay' | 'to_receive';
+type ActiveTab = 'transactions' | 'to_pay' | 'to_receive' | 'analysis';
 
 export const MainScreen: React.FC = () => {
   const { theme } = useTheme();
   const { shouldPromptBio, enableBiometric, dismissBioPrompt } = useAuth();
-  const { clearDates, fromDate, toDate } = useTransactions();
   const { toast } = useToast();
   const insets = useSafeAreaInsets();
 
@@ -51,7 +50,7 @@ export const MainScreen: React.FC = () => {
     if (activeTab === 'transactions') {
       setSelectedTx(null);
       setTxSheetVisible(true);
-    } else {
+    } else if (activeTab === 'to_pay' || activeTab === 'to_receive') {
       setLoanToEdit(null);
       setLoanSheetDefaultType(activeTab);
       setLoanSheetVisible(true);
@@ -82,8 +81,6 @@ export const MainScreen: React.FC = () => {
       toast(res.error ?? 'Could not enable biometric');
     }
   };
-
-  const hasFilter = !!(fromDate || toDate);
 
   return (
     <View style={[styles.root, { backgroundColor: theme.bg }]}>
@@ -198,6 +195,36 @@ export const MainScreen: React.FC = () => {
               To Receive
             </Text>
           </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[
+              styles.tabBtn,
+              activeTab === 'analysis' && [
+                styles.tabBtnActive,
+                { backgroundColor: theme.text },
+              ],
+            ]}
+            onPress={() => setActiveTab('analysis')}
+            activeOpacity={0.8}
+          >
+            <TrendingUp
+              size={13}
+              color={activeTab === 'analysis' ? theme.card : theme.accent}
+              strokeWidth={2.4}
+              style={{ marginRight: 3 }}
+            />
+            <Text
+              style={[
+                styles.tabBtnText,
+                {
+                  color: activeTab === 'analysis' ? theme.card : theme.muted,
+                  fontWeight: activeTab === 'analysis' ? '700' : '600',
+                },
+              ]}
+            >
+              Analysis
+            </Text>
+          </TouchableOpacity>
         </View>
 
         {/* Tab View 1: Transactions (Default view) */}
@@ -235,36 +262,35 @@ export const MainScreen: React.FC = () => {
             </View>
           </View>
         )}
+
+        {/* Tab View 4: Analysis (Deep Monthly & Category Insights) */}
+        {activeTab === 'analysis' && (
+          <View style={styles.viewContainer}>
+            <AnalysisView />
+          </View>
+        )}
       </View>
 
-      {/* Floating Action Button (FAB) */}
-      <TouchableOpacity
-        style={[
-          styles.fab,
-          {
-            backgroundColor:
-              activeTab === 'to_pay'
-                ? theme.expense
-                : activeTab === 'to_receive'
-                ? theme.income
-                : theme.text,
-            bottom: Math.max(insets.bottom, 10) + 16,
-          },
-        ]}
-        onPress={handleOpenAdd}
-        activeOpacity={0.88}
-      >
-        <Plus size={22} color={activeTab === 'transactions' ? theme.card : '#ffffff'} strokeWidth={2.4} />
-      </TouchableOpacity>
-
-      {/* Tap anywhere backdrop to clear chart date filter */}
-      {hasFilter && activeTab === 'transactions' && (
+      {/* Floating Action Button (FAB) - hidden on analysis view */}
+      {activeTab !== 'analysis' && (
         <TouchableOpacity
-          style={styles.backdropClear}
-          onPress={clearDates}
-          activeOpacity={1}
-          accessible={false}
-        />
+          style={[
+            styles.fab,
+            {
+              backgroundColor:
+                activeTab === 'to_pay'
+                  ? theme.expense
+                  : activeTab === 'to_receive'
+                  ? theme.income
+                  : theme.text,
+              bottom: Math.max(insets.bottom, 10) + 16,
+            },
+          ]}
+          onPress={handleOpenAdd}
+          activeOpacity={0.88}
+        >
+          <Plus size={22} color={activeTab === 'transactions' ? theme.card : '#ffffff'} strokeWidth={2.4} />
+        </TouchableOpacity>
       )}
 
       {/* Transaction CRUD Sheet */}
@@ -379,7 +405,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 7,
+    paddingVertical: 6.5,
     borderRadius: 0,
   },
   tabBtnActive: {
@@ -390,7 +416,7 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   tabBtnText: {
-    fontSize: 12,
+    fontSize: 11.5,
   },
   viewContainer: {
     flex: 1,
@@ -402,7 +428,7 @@ const styles = StyleSheet.create({
   },
   summaryWrap: {
     marginTop: 4,
-    marginBottom: 4,
+    marginBottom: 2,
   },
   listContainer: {
     flex: 1,
@@ -422,10 +448,6 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 6,
     zIndex: 99,
-  },
-  backdropClear: {
-    ...StyleSheet.absoluteFill,
-    zIndex: 10,
   },
   modalOverlay: {
     flex: 1,
