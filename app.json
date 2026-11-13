@@ -57,7 +57,8 @@
           "resizeMode": "contain",
           "imageWidth": 240
         }
-      ]
+      ],
+      "expo-status-bar"
     ]
   }
 }

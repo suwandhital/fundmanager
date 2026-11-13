@@ -159,8 +159,8 @@ const LoanSheetForm: React.FC<LoanSheetProps> = ({
                   ? 'Edit Debt Record'
                   : 'Edit Receivable Record'
                 : isToPay
-                ? 'Record Borrowed Debt'
-                : 'Record Loan Given'}
+                  ? 'Record Borrowed Debt'
+                  : 'Record Loan Given'}
             </Text>
 
             <View style={styles.headerRight}>
@@ -373,12 +373,12 @@ const LoanSheetForm: React.FC<LoanSheetProps> = ({
                 {isSubmitting
                   ? 'Saving...'
                   : isEditing
-                  ? isToPay
-                    ? 'Update Debt Record'
-                    : 'Update Receivable Record'
-                  : isToPay
-                  ? 'Save Borrowed Debt'
-                  : 'Save Receivable Record'}
+                    ? isToPay
+                      ? 'Update Debt Record'
+                      : 'Update Receivable Record'
+                    : isToPay
+                      ? 'Save Borrowed Debt'
+                      : 'Save Receivable Record'}
               </Text>
             </TouchableOpacity>
           </ScrollView>

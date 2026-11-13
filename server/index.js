@@ -191,6 +191,8 @@ const transactionSchema = new mongoose.Schema({
 
 transactionSchema.index({ userId: 1, txId: 1 });
 transactionSchema.index({ userEmail: 1, txId: 1 });
+transactionSchema.index({ userId: 1, time: -1 });
+transactionSchema.index({ userEmail: 1, time: -1 });
 const ServerTransaction = mongoose.model('Transaction', transactionSchema);
 
 const loanPaymentSchema = new mongoose.Schema({
@@ -226,6 +228,8 @@ const loanSchema = new mongoose.Schema({
 
 loanSchema.index({ userId: 1, loanId: 1 });
 loanSchema.index({ userEmail: 1, loanId: 1 });
+loanSchema.index({ userId: 1, createdAt: -1 });
+loanSchema.index({ userEmail: 1, createdAt: -1 });
 const ServerLoan = mongoose.model('Loan', loanSchema);
 
 // ─── 7. MongoDB Connection ───────────────────────────────────────────────────
@@ -687,7 +691,9 @@ app.post('/api/export/email', apiLimiter, async (req, res) => {
       return res.status(400).json({ error: 'A valid email address is required for statement export.' });
     }
 
-    const list = Array.isArray(transactions) ? transactions : [];
+    const rawList = Array.isArray(transactions) ? transactions : [];
+    // Safeguard memory: clamp to 3000 transactions per export report
+    const list = rawList.slice(0, 3000);
     const filterInfo = filterSummary || { type: 'All', search: '', range: 'All Recorded Dates' };
 
     // Generate clean executive tabular PDF
