@@ -34,35 +34,6 @@ Built with **React Native 0.88** and **Expo SDK 58**, it pairs an instant **100%
 
 ---
 
-## Core Capabilities
-
-1. **Neo-Brutalist Boxy Design System**
-   - High-contrast, sharp 90-degree corners (`borderRadius: 0`) across all cards, modals, buttons, chips, and inputs.
-   - Clean, functional dark/light mode color tokens with immediate toggle.
-   - Pure English terminology throughout the application for international clarity.
-
-2. **Unified 4-Section Architecture**
-   - **Transactions**: Daily cash flows, income & expense categorization, date drag-and-drop filters, search, and dynamic balance calculations.
-   - **To Pay (Debts Borrowed)**: Track personal loans, borrowed debts, accrued interest, and child payment logs (principal vs interest).
-   - **To Receive (Loans Given)**: Track receivables, money lent out, interest gain calculations, and partial/full settlement schedules.
-   - **Deep Analysis & Wealth Advisory**: Financial health scoring, month-over-month cash flow dynamics, top spend category breakdown, biggest single expenditures, and actionable wealth directives.
-
-3. **Executive PDF Financial Statement Delivery**
-   - Generate high-fidelity executive tabular PDF reports of your transactions directly from the app.
-   - Preserves all active filters (date ranges, income/expense types, and keyword search).
-   - Delivered immediately to the user's verified email address via the cloud backend.
-
-4. **Offline-First & Seamless Cloud Synchronization**
-   - 100% functional without network connectivity.
-   - Auto-syncs silently whenever an active network connection is detected.
-   - Biometric authentication (Fingerprint / Face ID) automatically keeps cloud sessions active.
-
-5. **Self-Hosted Azure OTA Updates**
-   - Daily automatic background update checks upon application startup.
-   - Instant delta updates via Hermes Bytecode bundles deployed directly from Azure App Service.
-
----
-
 ## System Architecture
 
 ```mermaid
@@ -169,26 +140,6 @@ fundmanager/
 ├── app.json                            # Expo SDK 58 application manifest & native config
 ├── eas.json                            # EAS build configuration
 └── package.json                        # Client dependencies
-```
-
----
-
-## Quality Assurance & Verification
-
-Every build and release is rigorously tested against strict quality standards:
-
-```bash
-# 1. Typecheck TypeScript across all components and contexts
-npx tsc --noEmit
-
-# 2. Lint using Expo ESLint configuration
-npx expo lint
-
-# 3. Expo SDK dependency and environment validation
-npx expo-doctor
-
-# 4. Node.js backend syntax and security check
-node -c server/index.js && node -c server/pdfGenerator.js
 ```
 
 ---
