@@ -172,9 +172,3 @@ Yes. All transactions and loans stored locally are retained on your physical dev
 
 In the Transactions tab, tap the **Export PDF** button. You can review your active filters (e.g. date range or search query) and enter your email address. The backend compiles a clean, executive tabular PDF statement and delivers it directly to your inbox.
 </details>
-
----
-
-## License
-
-This project is licensed under the [MIT License](LICENSE).
